@@ -9,6 +9,7 @@
   "scripts": {
     "daily": "tsx src/cli.ts",
     "daily:dry": "tsx src/cli.ts --dry-run",
+    "daily:upload": "tsx src/cli.ts --no-publish",
     "render:preview": "remotion preview src/remotion/index.ts"
   },
   "dependencies": {

@@ -4,20 +4,27 @@ import { config } from "./config";
 import { fetchSunsetSnapshot, localDateISO } from "./data/snapshot";
 import { logger } from "./logger";
 import { ensureSpotPhoto } from "./photos/unsplash";
+import { uploadReel } from "./publish/r2";
 import { renderReel } from "./remotion/render";
 import type { ReelProps } from "./remotion/types";
 import { computeSunsetScore } from "./scoring/score";
 import { pickSpotForDate } from "./spots/spots";
 
+type Command = "run" | "inspect";
+
 interface CliFlags {
-  command: "run" | "inspect";
+  command: Command;
+  /** Render only — no upload, no publish. */
   dryRun: boolean;
+  /** Skip the IG publish step (Phase 4). Implies render + upload. */
+  noPublish: boolean;
 }
 
 function parseArgs(argv: string[]): CliFlags {
-  const flags: CliFlags = { command: "run", dryRun: false };
+  const flags: CliFlags = { command: "run", dryRun: false, noPublish: false };
   for (const a of argv) {
     if (a === "--dry-run") flags.dryRun = true;
+    else if (a === "--no-publish") flags.noPublish = true;
     else if (a === "inspect") flags.command = "inspect";
   }
   return flags;
@@ -65,17 +72,33 @@ async function inspect(): Promise<void> {
   logger.info({ props }, "reel props (inspect)");
 }
 
-async function runDry(): Promise<void> {
+async function runPipeline(flags: CliFlags): Promise<void> {
   const props = await buildReelProps();
   logger.info({ props }, "reel props");
-  const outDir = path.resolve("out");
-  const result = await renderReel(props, outDir);
-  logger.info({ ...result }, "✅ dry-run render complete");
-}
 
-async function runFull(): Promise<void> {
-  // Phase 3+ wires upload + publish here.
-  logger.warn("orchestrator not yet wired — run with --dry-run for now");
+  const outDir = path.resolve("out");
+  const rendered = await renderReel(props, outDir);
+  logger.info({ ...rendered }, "render complete");
+
+  if (flags.dryRun) {
+    logger.info("--dry-run: skipping upload + publish");
+    return;
+  }
+
+  const uploaded = await uploadReel({
+    videoPath: rendered.videoPath,
+    coverPath: rendered.coverPath,
+    dateISO: props.dateISO,
+  });
+  logger.info({ ...uploaded }, "upload complete");
+
+  if (flags.noPublish) {
+    logger.info("--no-publish: skipping IG publish");
+    return;
+  }
+
+  // Phase 4 wires IG publish here.
+  logger.warn("IG publish not yet wired — re-run with --no-publish to stop here cleanly");
 }
 
 async function main(): Promise<void> {
@@ -84,11 +107,7 @@ async function main(): Promise<void> {
     await inspect();
     return;
   }
-  if (flags.dryRun) {
-    await runDry();
-    return;
-  }
-  await runFull();
+  await runPipeline(flags);
 }
 
 main().catch((err) => {

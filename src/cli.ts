@@ -1,14 +1,17 @@
 import path from "node:path";
 import { pickTrackForDate } from "./audio/picker";
+import { buildCaption } from "./caption/caption";
 import { config } from "./config";
 import { fetchSunsetSnapshot, localDateISO } from "./data/snapshot";
 import { logger } from "./logger";
 import { ensureSpotPhoto } from "./photos/unsplash";
+import { publishReel } from "./publish/instagram";
 import { uploadReel } from "./publish/r2";
+import { checkIgTokenExpiry } from "./publish/token-check";
 import { renderReel } from "./remotion/render";
 import type { ReelProps } from "./remotion/types";
 import { computeSunsetScore } from "./scoring/score";
-import { pickSpotForDate } from "./spots/spots";
+import { pickSpotForDate, type Spot } from "./spots/spots";
 
 type Command = "run" | "inspect";
 
@@ -16,7 +19,7 @@ interface CliFlags {
   command: Command;
   /** Render only — no upload, no publish. */
   dryRun: boolean;
-  /** Skip the IG publish step (Phase 4). Implies render + upload. */
+  /** Skip the IG publish step. Implies render + upload. */
   noPublish: boolean;
 }
 
@@ -39,7 +42,13 @@ function formatSunsetDisplay(sunsetUtc: string, tz: string): string {
   }).format(new Date(sunsetUtc));
 }
 
-async function buildReelProps(): Promise<ReelProps> {
+interface DailyContext {
+  props: ReelProps;
+  spot: Spot;
+  sunsetUtc: string;
+}
+
+async function buildDaily(): Promise<DailyContext> {
   const date = localDateISO();
   const snapshot = await fetchSunsetSnapshot(date);
   const score = computeSunsetScore(snapshot.times, snapshot.hourly, config.tz);
@@ -48,7 +57,7 @@ async function buildReelProps(): Promise<ReelProps> {
   const track = pickTrackForDate(date);
   const idx = score.hourIndex;
 
-  return {
+  const props: ReelProps = {
     dateISO: date,
     sunsetDisplay: formatSunsetDisplay(snapshot.times.sunsetUtc, config.tz),
     score: score.score,
@@ -65,19 +74,36 @@ async function buildReelProps(): Promise<ReelProps> {
     photoCredit: photo?.attribution ? `@${photo.attribution.username}` : null,
     audioFile: track?.staticPath ?? null,
   };
+
+  return { props, spot, sunsetUtc: snapshot.times.sunsetUtc };
 }
 
 async function inspect(): Promise<void> {
-  const props = await buildReelProps();
-  logger.info({ props }, "reel props (inspect)");
+  const ctx = await buildDaily();
+  logger.info({ props: ctx.props }, "reel props (inspect)");
+
+  const caption = buildCaption({
+    sunsetUtc: ctx.sunsetUtc,
+    spotName: ctx.spot.name,
+    spotNameKo: ctx.spot.nameKo,
+    score: ctx.props.score,
+    label: ctx.props.label as "🔥 Great" | "👍 Decent" | "😐 Meh",
+  });
+  // eslint-disable-next-line no-console
+  console.log("\n--- caption preview ---\n" + caption + "\n");
 }
 
 async function runPipeline(flags: CliFlags): Promise<void> {
-  const props = await buildReelProps();
-  logger.info({ props }, "reel props");
+  // Soft token check first so failures are visible before doing work.
+  if (!flags.dryRun && !flags.noPublish) {
+    await checkIgTokenExpiry();
+  }
+
+  const ctx = await buildDaily();
+  logger.info({ props: ctx.props }, "reel props");
 
   const outDir = path.resolve("out");
-  const rendered = await renderReel(props, outDir);
+  const rendered = await renderReel(ctx.props, outDir);
   logger.info({ ...rendered }, "render complete");
 
   if (flags.dryRun) {
@@ -88,7 +114,7 @@ async function runPipeline(flags: CliFlags): Promise<void> {
   const uploaded = await uploadReel({
     videoPath: rendered.videoPath,
     coverPath: rendered.coverPath,
-    dateISO: props.dateISO,
+    dateISO: ctx.props.dateISO,
   });
   logger.info({ ...uploaded }, "upload complete");
 
@@ -97,8 +123,21 @@ async function runPipeline(flags: CliFlags): Promise<void> {
     return;
   }
 
-  // Phase 4 wires IG publish here.
-  logger.warn("IG publish not yet wired — re-run with --no-publish to stop here cleanly");
+  const caption = buildCaption({
+    sunsetUtc: ctx.sunsetUtc,
+    spotName: ctx.spot.name,
+    spotNameKo: ctx.spot.nameKo,
+    score: ctx.props.score,
+    label: ctx.props.label as "🔥 Great" | "👍 Decent" | "😐 Meh",
+  });
+  logger.info({ chars: caption.length }, "caption built");
+
+  const published = await publishReel({
+    videoUrl: uploaded.videoUrl,
+    coverUrl: uploaded.coverUrl,
+    caption,
+  });
+  logger.info({ ...published }, "✅ daily reel published");
 }
 
 async function main(): Promise<void> {

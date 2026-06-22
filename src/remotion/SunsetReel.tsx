@@ -3,6 +3,7 @@ import { FONTS } from "../brand/fonts";
 import { COLORS } from "../brand/tokens";
 import { Attribution } from "./scenes/Attribution";
 import { AudioTrack } from "./scenes/AudioTrack";
+import { Logo } from "./scenes/Logo";
 import { PhotoBg } from "./scenes/PhotoBg";
 import { ScoreCard } from "./scenes/ScoreCard";
 import { SpotReveal } from "./scenes/SpotReveal";
@@ -19,6 +20,7 @@ export function SunsetReel(props: ReelProps): React.JSX.Element {
       }}
     >
       <PhotoBg photoFile={props.photoFile} />
+      <Logo />
       <TopBar sunsetDisplay={props.sunsetDisplay} />
       <SpotReveal spotName={props.spotName} spotBlurb={props.spotBlurb} />
       <ScoreCard score={props.score} label={props.label} />

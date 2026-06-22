@@ -61,6 +61,21 @@ export const LAYOUT = {
   horizontalPaddingPx: 80,
   /** Extra safety margin to absorb italic glyph overhang. */
   italicSafetyPx: 40,
+  /** Top-bar (rule + "TONIGHT IN VANCOUVER · 9:23 PM") distance from canvas top. */
+  topBarPx: 200,
+} as const;
+
+// ─── Logo ─────────────────────────────────────────────────────────────────────
+// Top-left masthead placement. Persistent — fades in once with the top bar.
+export const LOGO = {
+  /** Path under public/, used with staticFile(). */
+  src: "logo_transparent.png",
+  /** Width/height in px (square logo). */
+  sizePx: 100,
+  /** Distance from canvas top. */
+  topPx: 60,
+  /** Distance from canvas left. Matches LAYOUT.horizontalPaddingPx so logo aligns with top-bar rule. */
+  leftPx: 80,
 } as const;
 
 // ─── Easing ───────────────────────────────────────────────────────────────────

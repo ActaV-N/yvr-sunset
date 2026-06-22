@@ -5,6 +5,7 @@ import {
   EASING,
   FONT_SIZES,
   FONT_WEIGHTS,
+  LAYOUT,
   LETTER_SPACING,
   TIMELINE,
   TIMING,
@@ -44,9 +45,9 @@ export function TopBar({ sunsetDisplay }: Props): React.JSX.Element {
     <div
       style={{
         position: "absolute",
-        top: 110,
-        left: 80,
-        right: 80,
+        top: LAYOUT.topBarPx,
+        left: LAYOUT.horizontalPaddingPx,
+        right: LAYOUT.horizontalPaddingPx,
         opacity,
         transform: `translateY(${translateY}px)`,
       }}

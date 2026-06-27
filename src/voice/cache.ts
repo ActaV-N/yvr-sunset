@@ -1,16 +1,12 @@
-import { createHash } from "node:crypto";
 import { exec } from "node:child_process";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
-export const VOICE_DIR = path.resolve("public/voice");
-
 /**
  * Content-addressable cache key. Same (text, voice, model) triple → same hash
- * → same mp3 file → no API spend on re-runs.
+ * → same R2 object → no ElevenLabs spend on re-runs across any service.
  */
 export function voiceCacheKey(text: string, voiceId: string, modelId: string): string {
   return createHash("sha256")
@@ -19,25 +15,15 @@ export function voiceCacheKey(text: string, voiceId: string, modelId: string): s
     .slice(0, 16);
 }
 
-export function voiceCachePath(hash: string): string {
-  return path.join(VOICE_DIR, `${hash}.mp3`);
-}
-
-/** "public/voice/{hash}.mp3" — relative path for Remotion staticFile(). */
-export function voiceStaticPath(hash: string): string {
+/** Build the R2 object key from a cache hash. */
+export function voiceR2Key(hash: string): string {
   return `voice/${hash}.mp3`;
 }
 
-export async function fileExists(p: string): Promise<boolean> {
-  try {
-    await fs.access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** R2 metadata key for storing mp3 duration so cache hits don't re-probe. */
+export const DURATION_METADATA_KEY = "duration-seconds";
 
-/** ffprobe-based duration measurement (system ffprobe — also bundled in Railway nixpacks). */
+/** ffprobe-based duration measurement of a local mp3 file. */
 export async function measureMp3DurationSeconds(filePath: string): Promise<number> {
   const { stdout } = await execAsync(
     `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`,

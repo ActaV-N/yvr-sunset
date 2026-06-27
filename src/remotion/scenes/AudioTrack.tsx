@@ -1,13 +1,15 @@
-import { Audio, interpolate, staticFile, useVideoConfig } from "remotion";
+import { Audio, interpolate, useVideoConfig } from "remotion";
 import { AUDIO } from "../../brand/tokens";
 
 interface Props {
+  /** Full https URL to mp3 (typically R2 public URL). null → silent. */
   audioFile: string | null;
 }
 
 /**
- * Background music layer. Renders an <Audio> element with branded fade-in/out
- * volume envelope. Skipped entirely if no track is configured (silent reel).
+ * Background music layer. Renders <Audio> with branded fade-in/out volume envelope.
+ * Accepts a full URL (Remotion Chromium fetches at render via HTTP range requests).
+ * Silent (no element) if no track configured.
  */
 export function AudioTrack({ audioFile }: Props): React.JSX.Element | null {
   const { durationInFrames } = useVideoConfig();
@@ -17,7 +19,7 @@ export function AudioTrack({ audioFile }: Props): React.JSX.Element | null {
 
   return (
     <Audio
-      src={staticFile(audioFile)}
+      src={audioFile}
       volume={(frame) =>
         interpolate(
           frame,

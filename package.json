@@ -16,6 +16,7 @@
     "briefing": "tsx src/cli.ts --type briefing",
     "briefing:dry": "tsx src/cli.ts --type briefing --dry-run",
     "briefing:upload": "tsx src/cli.ts --type briefing --no-publish",
+    "migrate:audio": "tsx scripts/migrate-audio.ts",
     "render:preview": "remotion preview src/remotion/index.ts"
   },
   "dependencies": {

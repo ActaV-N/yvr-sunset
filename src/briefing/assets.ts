@@ -38,7 +38,7 @@ export async function buildBriefingReelProps(
   const sunsetWeekV = script.context.bestSunset
     ? await voiceSegment(script.segments.sunsetWeek.voiceText, fps)
     : null;
-  const eventVoices: Array<{ staticPath: string; durationFrames: number }> = [];
+  const eventVoices: Array<{ url: string; durationFrames: number }> = [];
   for (const seg of script.segments.events) {
     eventVoices.push(await voiceSegment(seg.voiceText, fps));
   }
@@ -46,14 +46,14 @@ export async function buildBriefingReelProps(
 
   // ── Project into composition schema ────────────────────────────────────
   const introScene = {
-    voiceFile: intro.staticPath,
+    voiceFile: intro.url,
     subtitleKR: script.segments.intro.subtitleText,
     durationFrames: intro.durationFrames,
   };
   const sunsetScene =
     script.context.bestSunset && sunsetWeekV
       ? {
-          voiceFile: sunsetWeekV.staticPath,
+          voiceFile: sunsetWeekV.url,
           subtitleKR: script.segments.sunsetWeek.subtitleText,
           durationFrames: sunsetWeekV.durationFrames,
           photoFile: sunsetPhotoPath,
@@ -66,7 +66,7 @@ export async function buildBriefingReelProps(
     const v = eventVoices[i]!;
     const seg = script.segments.events[i]!;
     return {
-      voiceFile: v.staticPath,
+      voiceFile: v.url,
       subtitleKR: seg.subtitleText,
       durationFrames: v.durationFrames,
       photoFile: eventPhotos[i] ?? null,
@@ -76,7 +76,7 @@ export async function buildBriefingReelProps(
     };
   });
   const outroScene = {
-    voiceFile: outro.staticPath,
+    voiceFile: outro.url,
     subtitleKR: script.segments.outro.subtitleText,
     durationFrames: outro.durationFrames,
   };
@@ -110,12 +110,12 @@ export async function buildBriefingReelProps(
 async function voiceSegment(
   text: string,
   fps: number,
-): Promise<{ staticPath: string; durationFrames: number }> {
+): Promise<{ url: string; durationFrames: number }> {
   const result = await generateVoice(text);
   // Pad 6 frames (0.2s @30fps) — subtitle lingers past final syllable.
   const padFrames = 6;
   const durationFrames = Math.ceil(result.durationSeconds * fps) + padFrames;
-  return { staticPath: result.staticPath, durationFrames };
+  return { url: result.url, durationFrames };
 }
 
 const DAYS_SHORT_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;

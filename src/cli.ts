@@ -81,7 +81,7 @@ async function buildSunsetDaily(): Promise<SunsetContext> {
   const score = computeSunsetScore(snapshot.times, snapshot.hourly, config.tz);
   const spot = pickSpotForDate(date);
   const photo = await ensureSpotPhoto(spot.slug, spot.unsplashQuery);
-  const track = pickTrackForDate(date, "sunset");
+  const track = await pickTrackForDate(date, "sunset");
   const idx = score.hourIndex;
 
   const props: ReelProps = {
@@ -100,7 +100,7 @@ async function buildSunsetDaily(): Promise<SunsetContext> {
     visibilityKm: Math.round((snapshot.hourly.visibility[idx] ?? 0) / 1000),
     photoFile: photo?.staticPath ?? null,
     photoCredit: photo?.attribution ? `@${photo.attribution.username}` : null,
-    audioFile: track?.staticPath ?? null,
+    audioFile: track?.url ?? null,
   };
 
   return { props, spot, sunsetUtc: snapshot.times.sunsetUtc };
@@ -233,13 +233,13 @@ async function runEventPipeline(flags: CliFlags): Promise<void> {
   }
 
   const event = await pickEventForDate(localDateISO());
-  const track = pickTrackForDate(event.localDate, "event");
+  const track = await pickTrackForDate(event.localDate, "event");
   const photo = event.imageUrl
     ? await ensureEventPhoto(event.id, event.imageUrl)
     : null;
   const props = buildEventReelProps(
     event,
-    track?.staticPath ?? null,
+    track?.url ?? null,
     photo?.staticPath ?? null,
   );
   logger.info({ props }, "event reel props");
@@ -321,11 +321,11 @@ async function runBriefingPipeline(flags: CliFlags): Promise<void> {
   );
 
   // BGM: briefing mood first, fall back to sunset pool.
-  const track = pickTrackForDate(script.dateISO, "briefing");
+  const track = await pickTrackForDate(script.dateISO, "briefing");
   const props = await buildBriefingReelProps(
     script,
     BRIEFING_FPS,
-    track?.staticPath ?? null,
+    track?.url ?? null,
   );
 
   const outDir = path.resolve("out");

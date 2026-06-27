@@ -1,9 +1,11 @@
-import { Audio, staticFile } from "remotion";
+import { Audio } from "remotion";
 
 /**
- * Per-scene voice audio. Volume kept at near-max — BGM is mixed at low volume
- * at the composition level so we don't need to duck here.
+ * Per-scene TTS audio. Volume kept near-max — BGM is mixed at lower volume
+ * at the composition level so no ducking needed here.
+ *
+ * Accepts a full https URL (Remotion Chromium fetches at render).
  */
 export function SceneVoice({ voiceFile }: { voiceFile: string }): React.JSX.Element {
-  return <Audio src={staticFile(voiceFile)} volume={0.95} />;
+  return <Audio src={voiceFile} volume={0.95} />;
 }

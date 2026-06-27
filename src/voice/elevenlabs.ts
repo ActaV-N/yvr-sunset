@@ -1,48 +1,54 @@
 import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { config, requireElevenLabsConfig } from "../config";
 import { logger } from "../logger";
+import { headObject, publicUrl, putObject } from "../storage/r2";
 import {
-  fileExists,
+  DURATION_METADATA_KEY,
   measureMp3DurationSeconds,
   voiceCacheKey,
-  voiceCachePath,
-  voiceStaticPath,
-  VOICE_DIR,
+  voiceR2Key,
 } from "./cache";
 
 const ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech";
 
 export interface GenerateVoiceResult {
-  /** Path under public/ for Remotion staticFile(), e.g., "voice/abc123.mp3". */
-  staticPath: string;
-  /** Local absolute path (debug). */
-  absolutePath: string;
-  /** Measured mp3 duration in seconds. */
+  /** Full R2 https URL — passed directly to Remotion <Audio src={url} />. */
+  url: string;
   durationSeconds: number;
-  /** True if served from cache (no API call). */
+  /** True if served from R2 cache (no API call). */
   cached: boolean;
 }
 
 /**
- * Synthesize `text` to mp3 via ElevenLabs, with content-hash cache.
- * Same (text, voice, model) triple → same hash → no API spend on re-run.
+ * Synthesize `text` to mp3 via ElevenLabs, with R2-backed content-hash cache.
+ *
+ * Cache hit path: HEAD R2 → read `duration-seconds` from object metadata → return URL.
+ * Cache miss path: POST ElevenLabs → measure duration via ffprobe → PUT R2 with
+ * duration in metadata → return URL.
+ *
+ * Same (text, voice, model) triple across any run / service / deploy = no API spend.
  */
 export async function generateVoice(text: string): Promise<GenerateVoiceResult> {
   requireElevenLabsConfig();
   const { voiceId, modelId, apiKey } = config.elevenlabs;
   const hash = voiceCacheKey(text, voiceId, modelId);
-  const abs = voiceCachePath(hash);
+  const key = voiceR2Key(hash);
 
-  if (await fileExists(abs)) {
-    const durationSeconds = await measureMp3DurationSeconds(abs);
-    return {
-      staticPath: voiceStaticPath(hash),
-      absolutePath: abs,
-      durationSeconds,
-      cached: true,
-    };
+  // ── R2 cache check ────────────────────────────────────────────────────
+  const head = await headObject(key);
+  if (head) {
+    const stored = parseFloat(head.metadata[DURATION_METADATA_KEY] ?? "");
+    if (Number.isFinite(stored) && stored > 0) {
+      logger.info({ hash, durationSeconds: stored }, "voice cache hit (R2)");
+      return { url: publicUrl(key), durationSeconds: stored, cached: true };
+    }
+    // Metadata missing — rare orphan; fall through to regenerate.
+    logger.warn({ key }, "R2 voice object missing duration metadata — regenerating");
   }
 
+  // ── ElevenLabs call ───────────────────────────────────────────────────
   logger.info({ chars: text.length, voiceId, modelId }, "elevenlabs TTS request");
   const res = await fetch(`${ENDPOINT}/${voiceId}`, {
     method: "POST",
@@ -60,20 +66,25 @@ export async function generateVoice(text: string): Promise<GenerateVoiceResult> 
   if (!res.ok) {
     throw new Error(`elevenlabs TTS failed: HTTP ${res.status} — ${await res.text()}`);
   }
-
-  await fs.mkdir(VOICE_DIR, { recursive: true });
   const buf = Buffer.from(await res.arrayBuffer());
-  await fs.writeFile(abs, buf);
-  const durationSeconds = await measureMp3DurationSeconds(abs);
+
+  // ── Measure duration (ffprobe needs a path) ──────────────────────────
+  const tmpPath = path.join(tmpdir(), `tts-${hash}.mp3`);
+  await fs.writeFile(tmpPath, buf);
+  const durationSeconds = await measureMp3DurationSeconds(tmpPath);
+  await fs.unlink(tmpPath).catch(() => {
+    /* ignore — best effort */
+  });
+
+  // ── Upload to R2 with duration in object metadata ────────────────────
+  await putObject(key, buf, {
+    contentType: "audio/mpeg",
+    metadata: { [DURATION_METADATA_KEY]: String(durationSeconds) },
+  });
   logger.info(
     { hash, bytes: buf.length, durationSeconds },
-    "elevenlabs TTS cached",
+    "elevenlabs TTS cached to R2",
   );
 
-  return {
-    staticPath: voiceStaticPath(hash),
-    absolutePath: abs,
-    durationSeconds,
-    cached: false,
-  };
+  return { url: publicUrl(key), durationSeconds, cached: false };
 }

@@ -4,3 +4,9 @@ node_modules
 out
 *.log
 .DS_Store
+
+# Audio assets live in R2 (see scripts/migrate-audio.ts).
+# Local public/audio/ exists only as migration source — never committed.
+public/audio/
+# Voice TTS mp3s are R2-cached by content hash. Local public/voice/ is legacy.
+public/voice/

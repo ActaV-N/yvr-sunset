@@ -260,10 +260,15 @@ async function runEventPipeline(flags: CliFlags): Promise<void> {
     return;
   }
 
-  // Publish wired in E4.
-  throw new Error(
-    "event IG publish not yet wired — run with --no-publish for E3, or wait for E4",
-  );
+  const caption = buildEventCaption(event);
+  logger.info({ chars: caption.length }, "caption built");
+
+  const published = await publishReel({
+    videoUrl: uploaded.videoUrl,
+    coverUrl: uploaded.coverUrl,
+    caption,
+  });
+  logger.info({ ...published }, "✅ event reel published");
 }
 
 // ─── Entry ───────────────────────────────────────────────────────────────

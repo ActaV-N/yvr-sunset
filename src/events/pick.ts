@@ -1,5 +1,6 @@
 import { fetchVancouverEvents, type TicketmasterEvent } from "../feeds/ticketmaster";
 import { logger } from "../logger";
+import { isBlockedByKeyword } from "./policy";
 import type { CuratedEvent } from "./types";
 
 const HORIZON_DAYS = 7;
@@ -38,6 +39,10 @@ export async function pickEventForDate(
   logger.info({ rawCount: raw.length }, "ticketmaster events fetched");
 
   const qualified = raw.filter(isQualified);
+  logger.info(
+    { qualifiedCount: qualified.length, blockedCount: raw.length - qualified.length },
+    "events filtered by qualification + keyword policy",
+  );
   if (qualified.length === 0) {
     throw new NoEventsAvailableError();
   }
@@ -50,7 +55,15 @@ export async function pickEventForDate(
 function isQualified(e: TicketmasterEvent): boolean {
   const hasImage = e.images.length > 0;
   const hasVenue = (e._embedded?.venues.length ?? 0) > 0;
-  return hasImage && hasVenue;
+  if (!hasImage || !hasVenue) return false;
+
+  // Brand-policy keyword filter — name + classification labels.
+  const classificationText = e.classifications
+    .flatMap((c) => [c.segment?.name, c.genre?.name, c.subGenre?.name])
+    .filter(Boolean)
+    .join(" ");
+  const haystack = `${e.name} ${classificationText}`;
+  return !isBlockedByKeyword(haystack);
 }
 
 /** Sort comparator: weekend events first, then larger venue, then stable id. */

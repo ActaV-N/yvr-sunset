@@ -1,0 +1,40 @@
+# yvr-sunset-daily-cron 전용 Railway config.
+#
+# 적용: Railway 대시보드 → yvr-sunset-daily-cron service → Settings →
+#       Config Path = "yvr-sunset/railway.daily-cron.toml"
+#       (mono-repo 외부 단독 repo 라면 "railway.daily-cron.toml")
+#
+# 흐름:
+#   1. cron tick (UTC 22:00 = PDT 15:00 / PST 14:00, 일몰 2~3h 전 Vancouver 오후)
+#   2. 컨테이너 spin up → `npm run daily` 실행
+#      - 데이터 fetch (sunrise-sunset + open-meteo)
+#      - Remotion render (Chrome 은 image 에 pre-bake 됨, scripts/warmup.ts)
+#      - R2 업로드
+#      - IG 3-step container 발행
+#   3. 종료. 다음 tick 까지 컴퓨트 0.
+#
+# 분리 유지: 이벤트 cron(주 1회 목요일) 은 별도 service + 별도 railway.*.toml.
+#
+# Secrets (Railway 대시보드 → Variables, 서비스별 별도 또는 Project 공통):
+#   IG_USER_ID, IG_ACCESS_TOKEN, IG_GRAPH_VERSION,
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+#   R2_BUCKET, R2_PUBLIC_BASE_URL, UNSPLASH_ACCESS_KEY
+#
+# 토큰 만료 (kokio_v2 정책 — 자동 갱신 안 함):
+#   debug_token check 가 14일 이내 만료 시 pino.warn → Railway logs 에서 확인.
+#   별도 알림 통합은 안 붙임.
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Cron: 22:00 UTC. 일부 시즌은 일몰까지 6h 여유, "오늘 저녁 계획" 톤이 맞음.
+# Railway cron 도 GH 처럼 spike 시 약간 지연 가능 — 일몰 직전이 아니라 여유 둠.
+startCommand = "npm run daily"
+cronSchedule = "0 22 * * *"
+
+# restartPolicyType = "on_failure":
+#   IG container poll 이 일시적으로 ERROR 떨어진 케이스 재시도 위함.
+#   3회 retry 후에도 실패면 다음 tick 까지 대기.
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

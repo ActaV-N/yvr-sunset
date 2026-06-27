@@ -4,7 +4,7 @@ import { logger } from "../logger";
 
 const AUDIO_ROOT = path.resolve("public/audio");
 
-export type AudioMood = "sunset" | "event";
+export type AudioMood = "sunset" | "event" | "briefing";
 
 export interface AudioTrack {
   /** Path relative to public/ for Remotion staticFile(). */
@@ -35,16 +35,25 @@ function listTracksIn(relDir: string): AudioTrack[] {
  *
  * Lookup order:
  *   1. public/audio/{mood}/*.mp3 — preferred, type-specific
- *   2. public/audio/*.mp3        — fallback shared pool
+ *   2. public/audio/sunset/*.mp3 — universal fallback (sunset pool is the
+ *      broadly-safe default — always populated, calm tones fit any reel)
+ *   3. public/audio/*.mp3        — flat-root legacy fallback
  *
- * Returns null if both are empty (reel renders silent + warning).
+ * Returns null if all three are empty (reel renders silent + warning).
  */
 export function pickTrackForDate(
   dateISO: string,
   mood: AudioMood = "sunset",
 ): AudioTrack | null {
   const moodTracks = listTracksIn(mood);
-  const tracks = moodTracks.length > 0 ? moodTracks : listTracksIn("");
+  const fallbackPool =
+    moodTracks.length === 0 && mood !== "sunset" ? listTracksIn("sunset") : [];
+  const tracks =
+    moodTracks.length > 0
+      ? moodTracks
+      : fallbackPool.length > 0
+        ? fallbackPool
+        : listTracksIn("");
   if (tracks.length === 0) {
     logger.warn(
       { mood },

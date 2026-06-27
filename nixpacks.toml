@@ -44,6 +44,9 @@ aptPkgs = [
   # fallback 으로 Liberation + emoji.
   'fonts-liberation',
   'fonts-noto-color-emoji',
+  # ffprobe — Briefing pipeline 이 TTS mp3 duration 측정에 사용.
+  # ffmpeg 패키지가 ffprobe 도 포함.
+  'ffmpeg',
 ]
 
 # ── Install phase: nixpacks 자동 ────────────────────────────────────────

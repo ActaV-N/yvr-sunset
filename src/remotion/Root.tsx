@@ -1,4 +1,12 @@
 import { Composition } from "remotion";
+import { BriefingReel } from "./BriefingReel";
+import {
+  BRIEFING_FPS,
+  BRIEFING_HEIGHT,
+  BRIEFING_WIDTH,
+  BriefingReelPropsSchema,
+  DEFAULT_BRIEFING_PROPS,
+} from "./briefing-types";
 import {
   DEFAULT_EVENT_REEL_PROPS,
   EVENT_REEL_FPS,
@@ -20,6 +28,7 @@ import {
 
 export const SUNSET_COMPOSITION_ID = "SunsetReel";
 export const EVENT_COMPOSITION_ID = "EventReel";
+export const BRIEFING_COMPOSITION_ID = "BriefingReel";
 
 /** Back-compat alias for callers that pre-dated the event composition. */
 export const COMPOSITION_ID = SUNSET_COMPOSITION_ID;
@@ -46,6 +55,18 @@ export function RemotionRoot(): React.JSX.Element {
         height={EVENT_REEL_HEIGHT}
         schema={EventReelPropsSchema}
         defaultProps={DEFAULT_EVENT_REEL_PROPS}
+      />
+      <Composition
+        id={BRIEFING_COMPOSITION_ID}
+        component={BriefingReel}
+        fps={BRIEFING_FPS}
+        width={BRIEFING_WIDTH}
+        height={BRIEFING_HEIGHT}
+        schema={BriefingReelPropsSchema}
+        defaultProps={DEFAULT_BRIEFING_PROPS}
+        calculateMetadata={({ props }) => ({
+          durationInFrames: props.totalDurationFrames,
+        })}
       />
     </>
   );

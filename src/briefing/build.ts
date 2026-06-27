@@ -21,6 +21,7 @@ const DAYS_EN = [
   "Saturday",
 ] as const;
 const DAYS_KO = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"] as const;
+const DAYS_KO_SHORT = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 /**
  * Build a deterministic briefing script for the given publish date (default: now).
@@ -34,19 +35,19 @@ export async function buildBriefingScript(
   const today = localDateISO(publishDate);
 
   // ── Past week sunsets ───────────────────────────────────────────────────
+  // Sequential — open-meteo free tier 429s on burst parallel. 7×2 calls ≈ 3-5s.
   const pastDates = pastDateRange(publishDate, PAST_WEEK_DAYS);
-  const sunsetScores = await Promise.all(
-    pastDates.map(async (date) => {
-      try {
-        const snap = await fetchSunsetSnapshot(date);
-        const result = computeSunsetScore(snap.times, snap.hourly, config.tz);
-        return { date, score: result.score };
-      } catch (err) {
-        logger.warn({ date, err }, "sunset snapshot failed for day — skipping");
-        return { date, score: -1 };
-      }
-    }),
-  );
+  const sunsetScores: { date: string; score: number }[] = [];
+  for (const date of pastDates) {
+    try {
+      const snap = await fetchSunsetSnapshot(date);
+      const result = computeSunsetScore(snap.times, snap.hourly, config.tz);
+      sunsetScores.push({ date, score: result.score });
+    } catch (err) {
+      logger.warn({ date, err }, "sunset snapshot failed for day — skipping");
+      sunsetScores.push({ date, score: -1 });
+    }
+  }
   const best = sunsetScores
     .filter((s) => s.score >= 0)
     .sort((a, b) => b.score - a.score)[0];
@@ -112,6 +113,48 @@ function dayLabels(dateISO: string): { en: string; ko: string } {
   return { en: DAYS_EN[idx]!, ko: DAYS_KO[idx]! };
 }
 
+/** Disambiguating date labels for events that may share a weekday. */
+function dateLabels(dateISO: string): {
+  /** On-screen eyebrow, e.g., "SUN · JUN 28" (caller uppercases). */
+  visualEn: string;
+  /** KR subtitle date prefix, e.g., "6월 28일 (일)". */
+  ko: string;
+  /** Voice-friendly fragment for EN TTS, e.g., "Sunday the 28th". */
+  voiceEn: string;
+} {
+  const d = new Date(`${dateISO}T12:00:00Z`);
+  const idx = d.getUTCDay();
+  const day = parseInt(dateISO.slice(8, 10), 10);
+  const month = parseInt(dateISO.slice(5, 7), 10);
+  const monthShort = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+  }).format(d);
+  return {
+    visualEn: `${shortDayEn(idx)} · ${monthShort} ${day}`,
+    ko: `${month}월 ${day}일 (${DAYS_KO_SHORT[idx]!})`,
+    voiceEn: `${DAYS_EN[idx]!} the ${ordinal(day)}`,
+  };
+}
+
+function shortDayEn(idx: number): string {
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][idx]!;
+}
+
+function ordinal(n: number): string {
+  if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
+}
+
 function makeWeekLabel(publishDate: Date): string {
   // Publish is Sunday evening → upcoming Monday starts the covered week.
   const nextMon = new Date(publishDate);
@@ -146,18 +189,19 @@ function makeSunsetWeek(best: BestSunsetOfWeek | null): VoiceSegment {
       ...emptySegment(),
     };
   }
+  const dl = dateLabels(best.dateISO);
   return {
     voiceText: `${best.dayLabelEn}'s sunset scored ${best.score} — the week's best at ${best.spot.name}.`,
-    subtitleText: `지난 ${best.dayLabelKo}, ${best.score}점 — ${best.spot.nameKo}.`,
+    subtitleText: `${dl.ko}, ${best.score}점 — ${best.spot.nameKo}.`,
     ...emptySegment(),
   };
 }
 
 function makeEvent(e: CuratedEvent): VoiceSegment {
-  const { en, ko } = dayLabels(e.localDate);
+  const dl = dateLabels(e.localDate);
   return {
-    voiceText: `${e.name}, at ${e.venueName} on ${en}.`,
-    subtitleText: `${e.name} · ${e.venueName} · ${ko}`,
+    voiceText: `${e.name}, at ${e.venueName}, ${dl.voiceEn}.`,
+    subtitleText: `${dl.ko} · ${e.name} · ${e.venueName}`,
     ...emptySegment(),
   };
 }

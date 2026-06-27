@@ -3,8 +3,13 @@ import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { logger } from "../logger";
+import type { BriefingReelProps } from "./briefing-types";
 import type { EventReelProps } from "./event-types";
-import { EVENT_COMPOSITION_ID, SUNSET_COMPOSITION_ID } from "./Root";
+import {
+  BRIEFING_COMPOSITION_ID,
+  EVENT_COMPOSITION_ID,
+  SUNSET_COMPOSITION_ID,
+} from "./Root";
 import type { ReelProps } from "./types";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +44,20 @@ export async function renderEventReel(
     inputProps,
     outDir,
     filenameStem: `yvr-event-${inputProps.dateISO}`,
+  });
+}
+
+/** Weekly briefing reel. */
+export async function renderBriefingReel(
+  inputProps: BriefingReelProps,
+  outDir: string,
+  dateISO: string,
+): Promise<RenderResult> {
+  return renderComposition({
+    compositionId: BRIEFING_COMPOSITION_ID,
+    inputProps,
+    outDir,
+    filenameStem: `yvr-briefing-${dateISO}`,
   });
 }
 

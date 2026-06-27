@@ -1,5 +1,6 @@
 import path from "node:path";
 import { pickTrackForDate } from "./audio/picker";
+import { buildBriefingReelProps } from "./briefing/assets";
 import { buildBriefingScript } from "./briefing/build";
 import { buildCaption } from "./caption/caption";
 import { buildEventCaption } from "./caption/event-caption";
@@ -14,7 +15,8 @@ import { publishReel } from "./publish/instagram";
 import { uploadReel } from "./publish/r2";
 import { checkIgTokenExpiry } from "./publish/token-check";
 import type { EventReelProps } from "./remotion/event-types";
-import { renderEventReel, renderReel } from "./remotion/render";
+import { BRIEFING_FPS } from "./remotion/briefing-types";
+import { renderBriefingReel, renderEventReel, renderReel } from "./remotion/render";
 import type { ReelProps } from "./remotion/types";
 import { computeSunsetScore, getSunsetEyebrow } from "./scoring/score";
 import { pickSpotForDate, type Spot } from "./spots/spots";
@@ -303,11 +305,41 @@ function printSegment(label: string, seg: { voiceText: string; subtitleText: str
   console.log(`  KR: ${seg.subtitleText}\n`);
 }
 
-async function runBriefingPipeline(_flags: CliFlags): Promise<void> {
-  // Wired in B2 (composition + TTS), B3 (upload + publish), B4 (cron + docs).
+async function runBriefingPipeline(flags: CliFlags): Promise<void> {
+  if (!flags.dryRun && !flags.noPublish) {
+    await checkIgTokenExpiry();
+  }
+
+  const script = await buildBriefingScript();
+  logger.info(
+    {
+      weekLabel: script.weekLabel,
+      bestSunset: script.context.bestSunset?.dateISO ?? null,
+      eventCount: script.context.topEvents.length,
+    },
+    "briefing script built",
+  );
+
+  // BGM: briefing mood first, fall back to sunset pool.
+  const track = pickTrackForDate(script.dateISO, "briefing");
+  const props = await buildBriefingReelProps(
+    script,
+    BRIEFING_FPS,
+    track?.staticPath ?? null,
+  );
+
+  const outDir = path.resolve("out");
+  const rendered = await renderBriefingReel(props, outDir, script.dateISO);
+  logger.info({ ...rendered }, "briefing render complete");
+
+  if (flags.dryRun) {
+    logger.info("--dry-run: skipping upload + publish");
+    return;
+  }
+
+  // B3 wires upload + publish.
   throw new Error(
-    "briefing pipeline not yet wired beyond inspect — run with `inspect` for B1, " +
-      "or wait for B2 (render) / B3 (publish) / B4 (cron)",
+    "briefing upload+publish not yet wired — run with --dry-run for B2, or wait for B3",
   );
 }
 

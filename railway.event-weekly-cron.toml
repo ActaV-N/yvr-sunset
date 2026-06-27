@@ -1,0 +1,41 @@
+# yvr-sunset-event-weekly-cron 전용 Railway config.
+#
+# 적용: Railway 대시보드 → yvr-sunset-event-weekly-cron service → Settings →
+#       Config Path = "yvr-sunset/railway.event-weekly-cron.toml"
+#       (단독 repo 라면 "railway.event-weekly-cron.toml")
+#
+# 흐름:
+#   1. cron tick (목요일 UTC 23:00 = PDT 16:00 / PST 15:00 목요일 오후)
+#   2. 컨테이너 spin up → `npm run event` 실행
+#      - Ticketmaster Discovery API 로 다음 7일 음악·예술 이벤트 fetch
+#      - 키워드 필터(BLOCKED_KEYWORDS) + 자격(이미지+venue) 통과한 항목 정렬
+#      - 주말 우선 → venue capacity → id 순으로 1건 선정
+#      - 이미지 캐시 (public/events/{id}.jpg) → Remotion 렌더
+#      - R2 업로드 (reels/yvr-event-{date}.{mp4,jpg})
+#      - IG 3-step container 발행
+#   3. 종료.
+#
+# 분리 이유: 일몰(매일 22 UTC)과 이벤트(목요일 23 UTC) cron 시차로 같은
+# IG 계정에 algorithmic burst 방지 + 도메인 분리로 실패 격리. nixpacks 빌더는
+# 같은 코드/이미지 공유 (Chrome pre-bake 1회).
+#
+# Secrets — railway.daily-cron.toml 와 동일 + 1개 추가:
+#   IG_USER_ID, IG_ACCESS_TOKEN, IG_GRAPH_VERSION,
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+#   R2_BUCKET, R2_PUBLIC_BASE_URL, UNSPLASH_ACCESS_KEY,
+#   TICKETMASTER_API_KEY  ← 이벤트 cron 전용
+#
+# Empty week handling:
+#   pickEventForDate 가 NoEventsAvailableError throw → 컨테이너 exit 1 →
+#   Railway 가 on_failure 재시도. 3회 모두 빈 결과면 이번 주는 발행 skip
+#   (다음 주 cron 에서 새 fetch). 로그에서 식별 가능.
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm run event"
+cronSchedule = "0 23 * * 4"
+
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

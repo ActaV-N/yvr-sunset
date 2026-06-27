@@ -2,10 +2,13 @@
 
 밴쿠버 데일리 콘텐츠 IG 릴스 자동 발행 시스템. Kokio 패밀리 sub-brand, 시각 정체성은 독립 (`docs/BRAND.md` 참조).
 
-첫 feature: 오늘의 일몰 시각 · 점수 · 명당 추천. 향후 tide/moon/seasonal 등 확장 예정.
+Features:
+- **Sunset** (매일 UTC 22:00) — 오늘의 일몰 시각·점수·명당 추천
+- **Event** (주 1회, 목요일 UTC 23:00) — 다음 7일 음악·예술 이벤트 큐레이션 (Ticketmaster Discovery API)
+
+향후: tide / moon / seasonal 등 확장 예정.
 
 - IG: [@kokio.yvr](https://www.instagram.com/kokio.yvr)
-- 발행 주기: 매일 1회, UTC 22:00 (≈ PDT 15:00 / PST 14:00)
 
 ## 파이프라인
 
@@ -25,21 +28,35 @@ Sunrise-Sunset.org + Open-Meteo  →  점수 + 명당
 
 | 작업 | 문서 | 소요 |
 |------|------|------|
-| 브랜드 시스템 (색 · 타입 · 모션 · 오디오 · 캡션) | [docs/BRAND.md](docs/BRAND.md) | 읽기만 |
+| 브랜드 시스템 (색 · 타입 · 모션 · 오디오 · 캡션 · safe area · 사진 가독성) | [docs/BRAND.md](docs/BRAND.md) | 읽기만 |
 | Cloudflare R2 버킷 + API 토큰 | [docs/R2_SETUP.md](docs/R2_SETUP.md) | 5분 |
 | Instagram 비즈니스 계정 + long-lived 토큰 | [docs/IG_SETUP.md](docs/IG_SETUP.md) | 15분 |
-| Unsplash Access Key | https://unsplash.com/developers | 2분 |
+| Unsplash Access Key (sunset 명당 사진) | https://unsplash.com/developers | 2분 |
+| Ticketmaster Consumer Key (event 큐레이션) | [docs/EVENTS.md §1](docs/EVENTS.md) | 2분 |
 
-`.env.example`를 `.env`로 복사 후 위 4곳에서 받은 값 채우기.
+`.env.example`를 `.env`로 복사 후 위 5곳에서 받은 값 채우기.
 
 ## Scripts
 
+### Sunset (매일)
 | 명령 | 동작 |
 |------|------|
 | `npm run daily -- inspect` | 오늘 데이터 + 캡션 미리보기 (렌더X) |
 | `npm run daily:dry` | 렌더만, `out/yvr-sunset-{date}.mp4` 생성 |
 | `npm run daily:upload` | 렌더 + R2 업로드, IG 발행 스킵 |
 | `npm run daily` | 풀 파이프라인 (렌더→업로드→발행) |
+
+### Event (주 1회)
+| 명령 | 동작 |
+|------|------|
+| `npm run event -- inspect` | 다음 7일 이벤트 1건 선정 + 캡션 미리보기 |
+| `npm run event:dry` | 렌더만, `out/yvr-event-{event-date}.mp4` |
+| `npm run event:upload` | 렌더 + R2 업로드, IG 발행 스킵 |
+| `npm run event` | 풀 파이프라인 |
+
+### 공통
+| 명령 | 동작 |
+|------|------|
 | `npm run render:preview` | Remotion Studio (디자인 튜닝용) |
 
 ## 프로젝트 레이아웃

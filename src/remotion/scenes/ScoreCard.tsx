@@ -7,6 +7,7 @@ import {
   FONT_WEIGHTS,
   LAYOUT,
   LETTER_SPACING,
+  TEXT_SHADOWS,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
@@ -91,6 +92,7 @@ export function ScoreCard({ score, label }: Props): React.JSX.Element {
           letterSpacing: LETTER_SPACING.eyebrow,
           textTransform: "uppercase",
           color: COLORS.drift,
+          textShadow: TEXT_SHADOWS.body,
           marginBottom: 16,
         }}
       >
@@ -106,6 +108,7 @@ export function ScoreCard({ score, label }: Props): React.JSX.Element {
             lineHeight: 1,
             color: COLORS.sunsetOrange,
             letterSpacing: -4,
+            textShadow: TEXT_SHADOWS.hero,
             ...FONTS.tabularNums,
           }}
         >
@@ -117,6 +120,7 @@ export function ScoreCard({ score, label }: Props): React.JSX.Element {
             fontSize: FONT_SIZES.body,
             fontWeight: FONT_WEIGHTS.regular,
             color: COLORS.drift,
+            textShadow: TEXT_SHADOWS.body,
           }}
         >
           / 100
@@ -128,6 +132,7 @@ export function ScoreCard({ score, label }: Props): React.JSX.Element {
           fontSize: FONT_SIZES.label,
           fontWeight: FONT_WEIGHTS.bold,
           color: COLORS.daylightCream,
+          textShadow: TEXT_SHADOWS.body,
           marginTop: 12,
         }}
       >

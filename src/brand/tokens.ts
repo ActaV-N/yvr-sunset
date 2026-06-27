@@ -136,6 +136,33 @@ export const TIMING = {
   staggerFrames: 6,
 } as const;
 
+// ─── Photo legibility ────────────────────────────────────────────────────────
+// 사진 배경 위 텍스트 가독성 3단 레이어:
+//   1. photoFilter — 사진 자체에 desaturate + brightness 다운 + contrast 약간 +
+//   2. top/bottom scrim — 텍스트가 사는 상단/하단 띠를 dark gradient 로 덮어서
+//      중앙(사진 메인 피사체)은 vivid 유지
+//   3. textShadow — 텍스트 컴포넌트에 적용되는 마지막 안전망 (sticker 안 됨 정도로 subtle)
+//
+// PhotoBg 가 이미 적용하므로 새 reel 만들 때 별도로 신경 쓸 일 없음.
+// 사진이 유난히 밝거나 colorful 한 케이스에서 가독성이 떨어지면 여기 값만 조정.
+export const PHOTO_OVERLAY = {
+  /** Top band scrim — 상단(로고 + top bar) 가독성 보장. 0~30% 높이 구간. */
+  topScrimAlpha: 0.6,
+  /** Bottom band scrim — 하단(hero + 칩) 가독성 보장. 55%~100% 구간. */
+  bottomScrimAlpha: 0.85,
+  /** Edge vignette intensity (radial). */
+  vignetteAlpha: 0.5,
+  /** Photo 자체에 적용되는 CSS filter. saturate < 1 + brightness < 1 로 톤 통일. */
+  photoFilter: "saturate(0.92) brightness(0.82) contrast(1.05)",
+} as const;
+
+export const TEXT_SHADOWS = {
+  /** 작은 텍스트 (라벨/캡션/칩) — 살짝 띄움. */
+  body: "0 2px 8px rgba(0, 0, 0, 0.5)",
+  /** Hero/큰 숫자 — 더 멀리 퍼지는 그림자로 깊이감. */
+  hero: "0 4px 20px rgba(0, 0, 0, 0.55)",
+} as const;
+
 // ─── Audio ────────────────────────────────────────────────────────────────────
 // Background music volume + fade behavior. One source of truth so all tracks
 // feel consistent regardless of source mastering.

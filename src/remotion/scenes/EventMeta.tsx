@@ -8,6 +8,7 @@ import {
   FONT_WEIGHTS,
   LAYOUT,
   LETTER_SPACING,
+  TEXT_SHADOWS,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
@@ -98,6 +99,7 @@ export function EventMeta({ venueName, priceLabel }: Props): React.JSX.Element {
           letterSpacing: LETTER_SPACING.eyebrow,
           textTransform: "uppercase",
           color: COLORS.drift,
+          textShadow: TEXT_SHADOWS.body,
           marginBottom: 12,
         }}
       >
@@ -112,6 +114,7 @@ export function EventMeta({ venueName, priceLabel }: Props): React.JSX.Element {
           letterSpacing: 0,
           textTransform: "uppercase",
           whiteSpace: "nowrap",
+          textShadow: TEXT_SHADOWS.body,
         }}
       >
         {venueName.toUpperCase()}
@@ -126,6 +129,7 @@ export function EventMeta({ venueName, priceLabel }: Props): React.JSX.Element {
             marginTop: 16,
             letterSpacing: LETTER_SPACING.label,
             textTransform: "uppercase",
+            textShadow: TEXT_SHADOWS.body,
             ...FONTS.tabularNums,
           }}
         >

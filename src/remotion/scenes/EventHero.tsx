@@ -9,6 +9,7 @@ import {
   LAYOUT,
   LETTER_SPACING,
   SAFE_AREA,
+  TEXT_SHADOWS,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
@@ -109,6 +110,7 @@ function Eyebrow({ text, frame }: { text: string; frame: number }): React.JSX.El
         letterSpacing: LETTER_SPACING.eyebrow,
         textTransform: "uppercase",
         color: COLORS.sunsetOrange,
+        textShadow: TEXT_SHADOWS.body,
         opacity,
         marginBottom: 32,
       }}
@@ -151,6 +153,7 @@ function HeroLine({
         lineHeight: 1.0,
         letterSpacing: LETTER_SPACING.displayLoose,
         color: COLORS.daylightCream,
+        textShadow: TEXT_SHADOWS.hero,
         opacity,
         transform: `translateY(${translateY}px)`,
         whiteSpace: "nowrap",

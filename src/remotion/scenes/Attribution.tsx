@@ -6,6 +6,7 @@ import {
   FONT_SIZES,
   FONT_WEIGHTS,
   LAYOUT,
+  TEXT_SHADOWS,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
@@ -46,6 +47,7 @@ export function Attribution({ text }: Props): React.JSX.Element | null {
         fontSize: FONT_SIZES.micro,
         fontWeight: FONT_WEIGHTS.regular,
         color: COLORS.daylightCream,
+        textShadow: TEXT_SHADOWS.body,
         opacity,
         letterSpacing: 1,
       }}

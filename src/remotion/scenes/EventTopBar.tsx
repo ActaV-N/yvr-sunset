@@ -7,6 +7,7 @@ import {
   FONT_WEIGHTS,
   LAYOUT,
   LETTER_SPACING,
+  TEXT_SHADOWS,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
@@ -78,6 +79,7 @@ export function EventTopBar({ dateLabel, timeLabel }: Props): React.JSX.Element 
             letterSpacing: LETTER_SPACING.eyebrow,
             textTransform: "uppercase",
             color: COLORS.drift,
+            textShadow: TEXT_SHADOWS.body,
           }}
         >
           Event · {dateLabel}
@@ -89,6 +91,7 @@ export function EventTopBar({ dateLabel, timeLabel }: Props): React.JSX.Element 
               fontWeight: FONT_WEIGHTS.black,
               letterSpacing: LETTER_SPACING.body,
               color: COLORS.daylightCream,
+              textShadow: TEXT_SHADOWS.body,
               ...FONTS.tabularNums,
             }}
           >

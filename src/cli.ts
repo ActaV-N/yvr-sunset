@@ -5,12 +5,15 @@ import { buildEventCaption } from "./caption/event-caption";
 import { config } from "./config";
 import { fetchSunsetSnapshot, localDateISO } from "./data/snapshot";
 import { pickEventForDate } from "./events/pick";
+import type { CuratedEvent } from "./events/types";
 import { logger } from "./logger";
+import { ensureEventPhoto } from "./photos/ticketmaster";
 import { ensureSpotPhoto } from "./photos/unsplash";
 import { publishReel } from "./publish/instagram";
 import { uploadReel } from "./publish/r2";
 import { checkIgTokenExpiry } from "./publish/token-check";
-import { renderReel } from "./remotion/render";
+import type { EventReelProps } from "./remotion/event-types";
+import { renderEventReel, renderReel } from "./remotion/render";
 import type { ReelProps } from "./remotion/types";
 import { computeSunsetScore } from "./scoring/score";
 import { pickSpotForDate, type Spot } from "./spots/spots";
@@ -75,7 +78,7 @@ async function buildSunsetDaily(): Promise<SunsetContext> {
   const score = computeSunsetScore(snapshot.times, snapshot.hourly, config.tz);
   const spot = pickSpotForDate(date);
   const photo = await ensureSpotPhoto(spot.slug, spot.unsplashQuery);
-  const track = pickTrackForDate(date);
+  const track = pickTrackForDate(date, "sunset");
   const idx = score.hourIndex;
 
   const props: ReelProps = {
@@ -132,7 +135,6 @@ async function runSunsetPipeline(flags: CliFlags): Promise<void> {
   const uploaded = await uploadReel({
     videoPath: rendered.videoPath,
     coverPath: rendered.coverPath,
-    dateISO: ctx.props.dateISO,
   });
   logger.info({ ...uploaded }, "upload complete");
 
@@ -169,11 +171,98 @@ async function inspectEvent(): Promise<void> {
   console.log("\n--- caption preview ---\n" + caption + "\n");
 }
 
-async function runEventPipeline(_flags: CliFlags): Promise<void> {
-  // Wired incrementally — E2 adds render, E3 adds upload, E4 adds publish.
+function buildEventReelProps(
+  event: CuratedEvent,
+  audioFile: string | null,
+  photoFile: string | null,
+): EventReelProps {
+  return {
+    dateISO: event.localDate,
+    eventName: event.name,
+    venueName: event.venueName,
+    dateLabel: formatDateLabel(event.localDate),
+    timeLabel: event.localTime ? formatTimeLabel(event.localTime) : null,
+    categoryLabel: formatCategoryLabel(event.category, event.genre),
+    priceLabel: event.priceFrom
+      ? `from $${event.priceFrom.amount} ${event.priceFrom.currency}`
+      : null,
+    photoFile,
+    audioFile,
+  };
+}
+
+function formatDateLabel(dateISO: string): string {
+  const d = new Date(`${dateISO}T12:00:00Z`);
+  const dayShort = new Intl.DateTimeFormat("en-US", {
+    timeZone: config.tz,
+    weekday: "short",
+  }).format(d);
+  const monthDay = new Intl.DateTimeFormat("en-US", {
+    timeZone: config.tz,
+    month: "short",
+    day: "numeric",
+  }).format(d);
+  return `${dayShort} · ${monthDay}`.toUpperCase();
+}
+
+function formatTimeLabel(hm: string): string {
+  const [hStr, mStr] = hm.split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function formatCategoryLabel(
+  category: string | null,
+  genre: string | null,
+): string | null {
+  const parts = [category, genre].filter(Boolean) as string[];
+  if (parts.length === 0) return null;
+  return parts.join(" · ").toUpperCase();
+}
+
+async function runEventPipeline(flags: CliFlags): Promise<void> {
+  if (!flags.dryRun && !flags.noPublish) {
+    await checkIgTokenExpiry();
+  }
+
+  const event = await pickEventForDate(localDateISO());
+  const track = pickTrackForDate(event.localDate, "event");
+  const photo = event.imageUrl
+    ? await ensureEventPhoto(event.id, event.imageUrl)
+    : null;
+  const props = buildEventReelProps(
+    event,
+    track?.staticPath ?? null,
+    photo?.staticPath ?? null,
+  );
+  logger.info({ props }, "event reel props");
+
+  const outDir = path.resolve("out");
+  const rendered = await renderEventReel(props, outDir);
+  logger.info({ ...rendered }, "event render complete");
+
+  if (flags.dryRun) {
+    logger.info("--dry-run: skipping upload + publish");
+    return;
+  }
+
+  const uploaded = await uploadReel({
+    videoPath: rendered.videoPath,
+    coverPath: rendered.coverPath,
+  });
+  logger.info({ ...uploaded }, "upload complete");
+
+  if (flags.noPublish) {
+    logger.info("--no-publish: skipping IG publish");
+    return;
+  }
+
+  // Publish wired in E4.
   throw new Error(
-    "event pipeline not yet wired beyond inspect — run with `inspect` for E1, " +
-      "or wait for E2 (render) / E3 (upload) / E4 (publish)",
+    "event IG publish not yet wired — run with --no-publish for E3, or wait for E4",
   );
 }
 

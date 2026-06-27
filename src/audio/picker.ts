@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "../logger";
 
-const AUDIO_DIR = path.resolve("public/audio");
+const AUDIO_ROOT = path.resolve("public/audio");
+
+export type AudioMood = "sunset" | "event";
 
 export interface AudioTrack {
   /** Path relative to public/ for Remotion staticFile(). */
@@ -12,27 +14,41 @@ export interface AudioTrack {
 }
 
 /**
- * List all *.mp3 files in public/audio/ sorted by filename.
- * Use a numeric prefix (e.g. "01-…", "02-…") to control rotation order.
+ * List *.mp3 in a directory (relative to public/audio), sorted by filename.
+ * Use numeric prefix (e.g. "01-…") to control rotation order.
  */
-function listTracks(): AudioTrack[] {
-  if (!fs.existsSync(AUDIO_DIR)) return [];
+function listTracksIn(relDir: string): AudioTrack[] {
+  const abs = path.join(AUDIO_ROOT, relDir);
+  if (!fs.existsSync(abs)) return [];
   return fs
-    .readdirSync(AUDIO_DIR)
+    .readdirSync(abs)
     .filter((f) => f.toLowerCase().endsWith(".mp3"))
     .sort()
     .map((file) => ({
-      staticPath: `audio/${file}`,
+      staticPath: relDir ? `audio/${relDir}/${file}` : `audio/${file}`,
       name: file.replace(/\.mp3$/i, ""),
     }));
 }
 
-/** Deterministic per-date rotation. Returns null if no tracks present. */
-export function pickTrackForDate(dateISO: string): AudioTrack | null {
-  const tracks = listTracks();
+/**
+ * Deterministic per-date rotation, mood-aware.
+ *
+ * Lookup order:
+ *   1. public/audio/{mood}/*.mp3 — preferred, type-specific
+ *   2. public/audio/*.mp3        — fallback shared pool
+ *
+ * Returns null if both are empty (reel renders silent + warning).
+ */
+export function pickTrackForDate(
+  dateISO: string,
+  mood: AudioMood = "sunset",
+): AudioTrack | null {
+  const moodTracks = listTracksIn(mood);
+  const tracks = moodTracks.length > 0 ? moodTracks : listTracksIn("");
   if (tracks.length === 0) {
     logger.warn(
-      "no audio tracks in public/audio/ — reel will be silent. See docs/BRAND.md §Audio",
+      { mood },
+      "no audio tracks found — reel will be silent. See docs/BRAND.md §4",
     );
     return null;
   }

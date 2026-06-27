@@ -48,32 +48,58 @@ export const FONT_SIZES = {
 export const LETTER_SPACING = {
   tight: -8,
   display: -4,
+  /** Looser display tracking for italic headlines with variable-width content
+   * (e.g., event names with mixed-case + numbers). */
+  displayLoose: 0,
   body: 0,
   label: 4,
   eyebrow: 10,
 } as const;
 
+// ─── IG Safe Area ─────────────────────────────────────────────────────────────
+// IG Reels overlay regions per Meta's Safe Zone spec. Anything inside the top
+// and bottom bands is COVERED by IG UI (profile/handle on top, profile bar +
+// caption + action icons on bottom). Background visuals can extend edge-to-edge,
+// but **critical info text (시각, 점수, 장소, 가격, 로고)** must stay inside the
+// usable middle band.
+//
+// Usable middle = 1920 - 220 - 340 = 1360 px.
+export const SAFE_AREA = {
+  /** Top region cropped by IG @handle / story title overlay. */
+  topPx: 220,
+  /** Bottom region covered by profile bar + caption + action icons. */
+  bottomPx: 340,
+  /** Inner padding inside the safe zone (visual breathing room). */
+  insetPx: 40,
+} as const;
+
 // ─── Layout ───────────────────────────────────────────────────────────────────
-// Safe areas inside the 1080×1920 canvas. Use these (not magic px) for any
-// new horizontal/vertical block.
+// Derived placement constants. Anchored to SAFE_AREA so any reel composition
+// inherits the same critical-content zone automatically.
 export const LAYOUT = {
   /** Outer horizontal padding for any text block. */
   horizontalPaddingPx: 80,
   /** Extra safety margin to absorb italic glyph overhang. */
   italicSafetyPx: 40,
-  /** Top-bar (rule + "TONIGHT IN VANCOUVER · 9:23 PM") distance from canvas top. */
-  topBarPx: 200,
+  /** Top-bar (rule + label row) distance from canvas top.
+   * Sits below LOGO with breathing room, fully inside safe zone. */
+  topBarPx: 460,
+  /** Bottom chip (ScoreCard / EventMeta / Attribution) `bottom` value.
+   * Equals SAFE_AREA.bottomPx + SAFE_AREA.insetPx → chip's bottom edge sits at
+   * 1920 - 380 = 1540, comfortably above the IG profile/caption overlay. */
+  bottomChipPx: 380,
 } as const;
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 // Top-left masthead placement. Persistent — fades in once with the top bar.
+// Moved down to clear SAFE_AREA.topPx (was 60 → covered by IG @handle).
 export const LOGO = {
   /** Path under public/, used with staticFile(). */
   src: "logo_transparent.png",
   /** Width/height in px (square logo). */
   sizePx: 100,
-  /** Distance from canvas top. */
-  topPx: 60,
+  /** Distance from canvas top. SAFE_AREA.topPx + SAFE_AREA.insetPx. */
+  topPx: 260,
   /** Distance from canvas left. Matches LAYOUT.horizontalPaddingPx so logo aligns with top-bar rule. */
   leftPx: 80,
 } as const;

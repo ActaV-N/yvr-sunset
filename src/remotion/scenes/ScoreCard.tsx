@@ -5,6 +5,7 @@ import {
   EASING,
   FONT_SIZES,
   FONT_WEIGHTS,
+  LAYOUT,
   LETTER_SPACING,
   TIMELINE,
   TIMING,
@@ -67,8 +68,8 @@ export function ScoreCard({ score, label }: Props): React.JSX.Element {
     <div
       style={{
         position: "absolute",
-        left: 80,
-        bottom: 130,
+        left: LAYOUT.horizontalPaddingPx,
+        bottom: LAYOUT.bottomChipPx,
         opacity,
         transform: `translateY(${translateY}px)`,
       }}

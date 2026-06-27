@@ -8,6 +8,7 @@ import {
   FONT_WEIGHTS,
   LAYOUT,
   LETTER_SPACING,
+  SAFE_AREA,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
@@ -47,7 +48,10 @@ export function SpotReveal({ spotName, spotBlurb }: Props): React.JSX.Element {
     <div
       style={{
         position: "absolute",
-        inset: 0,
+        top: SAFE_AREA.topPx,
+        bottom: SAFE_AREA.bottomPx,
+        left: 0,
+        right: 0,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",

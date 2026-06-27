@@ -24,7 +24,9 @@ export function SunsetReel(props: ReelProps): React.JSX.Element {
       <TopBar sunsetDisplay={props.sunsetDisplay} />
       <SpotReveal spotName={props.spotName} spotBlurb={props.spotBlurb} />
       <ScoreCard score={props.score} label={props.label} />
-      <Attribution credit={props.photoCredit} />
+      <Attribution
+        text={props.photoCredit ? `📸 ${props.photoCredit} / Unsplash` : null}
+      />
       <AudioTrack audioFile={props.audioFile} />
     </AbsoluteFill>
   );

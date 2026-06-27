@@ -5,18 +5,26 @@ import {
   EASING,
   FONT_SIZES,
   FONT_WEIGHTS,
+  LAYOUT,
   TIMELINE,
   TIMING,
 } from "../../brand/tokens";
 
 interface Props {
-  credit: string | null;
+  /** Already-formatted attribution text. null → render nothing. */
+  text: string | null;
 }
 
-/** Bottom-right micro line — Unsplash ToS compliance + photographer credit. */
-export function Attribution({ credit }: Props): React.JSX.Element | null {
+/**
+ * Bottom-right micro line — source attribution. Callers pre-format the string
+ * (icon + label + source) so this component stays content-agnostic.
+ * Examples:
+ *  - "📸 @kaprion / Unsplash"
+ *  - "🎟 via Ticketmaster"
+ */
+export function Attribution({ text }: Props): React.JSX.Element | null {
   const frame = useCurrentFrame();
-  if (!credit) return null;
+  if (!text) return null;
   const start = TIMELINE.attributionFrom;
   const opacity = interpolate(
     frame,
@@ -32,8 +40,8 @@ export function Attribution({ credit }: Props): React.JSX.Element | null {
     <div
       style={{
         position: "absolute",
-        right: 80,
-        bottom: 110,
+        right: LAYOUT.horizontalPaddingPx,
+        bottom: LAYOUT.bottomChipPx,
         fontFamily: FONTS.ui,
         fontSize: FONT_SIZES.micro,
         fontWeight: FONT_WEIGHTS.regular,
@@ -42,7 +50,7 @@ export function Attribution({ credit }: Props): React.JSX.Element | null {
         letterSpacing: 1,
       }}
     >
-      📸 {credit} / Unsplash
+      {text}
     </div>
   );
 }

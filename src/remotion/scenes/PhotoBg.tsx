@@ -43,7 +43,7 @@ export function PhotoBg({ photoFile }: Props): React.JSX.Element {
           }}
         >
           <Img
-            src={staticFile(photoFile)}
+            src={photoFile.startsWith("http") ? photoFile : staticFile(photoFile)}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         </AbsoluteFill>

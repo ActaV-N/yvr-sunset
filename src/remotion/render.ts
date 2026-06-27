@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { logger } from "../logger";
-import { COMPOSITION_ID } from "./Root";
+import type { EventReelProps } from "./event-types";
+import { EVENT_COMPOSITION_ID, SUNSET_COMPOSITION_ID } from "./Root";
 import type { ReelProps } from "./types";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -15,28 +16,56 @@ export interface RenderResult {
   coverPath: string;
 }
 
-/**
- * Bundle the Remotion project and render the SunsetReel composition.
- * Produces both the H.264 MP4 and a 1080x1920 cover JPEG.
- */
+/** Sunset reel — back-compat name. */
 export async function renderReel(
   inputProps: ReelProps,
   outDir: string,
 ): Promise<RenderResult> {
-  logger.info({ entry: ENTRY_POINT }, "bundling remotion project");
-  const serveUrl = await bundle({
-    entryPoint: ENTRY_POINT,
-    // webpackOverride: (c) => c,  // default is fine
+  return renderComposition({
+    compositionId: SUNSET_COMPOSITION_ID,
+    inputProps,
+    outDir,
+    filenameStem: `yvr-sunset-${inputProps.dateISO}`,
   });
+}
+
+/** Event reel. */
+export async function renderEventReel(
+  inputProps: EventReelProps,
+  outDir: string,
+): Promise<RenderResult> {
+  return renderComposition({
+    compositionId: EVENT_COMPOSITION_ID,
+    inputProps,
+    outDir,
+    filenameStem: `yvr-event-${inputProps.dateISO}`,
+  });
+}
+
+interface RenderArgs<P> {
+  compositionId: string;
+  inputProps: P;
+  outDir: string;
+  filenameStem: string;
+}
+
+async function renderComposition<P extends Record<string, unknown>>(
+  args: RenderArgs<P>,
+): Promise<RenderResult> {
+  logger.info(
+    { entry: ENTRY_POINT, composition: args.compositionId },
+    "bundling remotion project",
+  );
+  const serveUrl = await bundle({ entryPoint: ENTRY_POINT });
 
   const composition = await selectComposition({
     serveUrl,
-    id: COMPOSITION_ID,
-    inputProps,
+    id: args.compositionId,
+    inputProps: args.inputProps,
   });
 
-  const videoPath = path.join(outDir, `yvr-sunset-${inputProps.dateISO}.mp4`);
-  const coverPath = path.join(outDir, `yvr-sunset-${inputProps.dateISO}.jpg`);
+  const videoPath = path.join(args.outDir, `${args.filenameStem}.mp4`);
+  const coverPath = path.join(args.outDir, `${args.filenameStem}.jpg`);
 
   logger.info({ videoPath }, "rendering video");
   await renderMedia({
@@ -44,7 +73,7 @@ export async function renderReel(
     serveUrl,
     codec: "h264",
     outputLocation: videoPath,
-    inputProps,
+    inputProps: args.inputProps,
     audioCodec: "aac",
     enforceAudioTrack: true,
   });
@@ -54,8 +83,8 @@ export async function renderReel(
     composition,
     serveUrl,
     output: coverPath,
-    inputProps,
-    // Pick a frame in the middle of the TimeCard scene (showing the sunset time).
+    inputProps: args.inputProps,
+    // Frame 90 = mid-reveal — hero text + photo both visible.
     frame: 90,
     imageFormat: "jpeg",
     jpegQuality: 90,

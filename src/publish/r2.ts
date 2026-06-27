@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { config, requireR2Config } from "../config";
 import { logger } from "../logger";
@@ -25,17 +26,21 @@ export interface UploadResult {
 }
 
 /**
- * Upload the daily reel + cover to R2 and return their public URLs.
- * Keys are date-scoped so re-runs on the same day overwrite (idempotent).
+ * Upload the rendered reel + cover to R2 under `reels/{basename}`.
+ *
+ * Keys are derived from the local filenames produced by the renderer
+ * (`yvr-sunset-{date}.mp4`, `yvr-event-{date}.mp4`). This avoids cross-type
+ * collisions without needing a separate folder per content type.
+ *
+ * Re-running on the same day with the same content overwrites (idempotent).
  */
 export async function uploadReel(args: {
   videoPath: string;
   coverPath: string;
-  dateISO: string;
 }): Promise<UploadResult> {
   const client = getClient();
-  const videoKey = `reels/${args.dateISO}.mp4`;
-  const coverKey = `reels/${args.dateISO}.jpg`;
+  const videoKey = `reels/${path.basename(args.videoPath)}`;
+  const coverKey = `reels/${path.basename(args.coverPath)}`;
 
   await uploadOne(client, args.videoPath, videoKey, "video/mp4");
   await uploadOne(client, args.coverPath, coverKey, "image/jpeg");

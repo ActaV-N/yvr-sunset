@@ -1,8 +1,10 @@
 import path from "node:path";
 import { pickTrackForDate } from "./audio/picker";
 import { buildCaption } from "./caption/caption";
+import { buildEventCaption } from "./caption/event-caption";
 import { config } from "./config";
 import { fetchSunsetSnapshot, localDateISO } from "./data/snapshot";
+import { pickEventForDate } from "./events/pick";
 import { logger } from "./logger";
 import { ensureSpotPhoto } from "./photos/unsplash";
 import { publishReel } from "./publish/instagram";
@@ -13,10 +15,12 @@ import type { ReelProps } from "./remotion/types";
 import { computeSunsetScore } from "./scoring/score";
 import { pickSpotForDate, type Spot } from "./spots/spots";
 
+type ReelType = "sunset" | "event";
 type Command = "run" | "inspect";
 
 interface CliFlags {
   command: Command;
+  type: ReelType;
   /** Render only — no upload, no publish. */
   dryRun: boolean;
   /** Skip the IG publish step. Implies render + upload. */
@@ -24,14 +28,31 @@ interface CliFlags {
 }
 
 function parseArgs(argv: string[]): CliFlags {
-  const flags: CliFlags = { command: "run", dryRun: false, noPublish: false };
-  for (const a of argv) {
+  const flags: CliFlags = {
+    command: "run",
+    type: "sunset",
+    dryRun: false,
+    noPublish: false,
+  };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
     if (a === "--dry-run") flags.dryRun = true;
     else if (a === "--no-publish") flags.noPublish = true;
     else if (a === "inspect") flags.command = "inspect";
+    else if (a === "--type") {
+      const next = argv[i + 1];
+      if (next === "sunset" || next === "event") {
+        flags.type = next;
+        i++;
+      } else {
+        throw new Error(`--type must be 'sunset' or 'event' (got ${next})`);
+      }
+    }
   }
   return flags;
 }
+
+// ─── Sunset path ─────────────────────────────────────────────────────────
 
 function formatSunsetDisplay(sunsetUtc: string, tz: string): string {
   return new Intl.DateTimeFormat("en-US", {
@@ -42,13 +63,13 @@ function formatSunsetDisplay(sunsetUtc: string, tz: string): string {
   }).format(new Date(sunsetUtc));
 }
 
-interface DailyContext {
+interface SunsetContext {
   props: ReelProps;
   spot: Spot;
   sunsetUtc: string;
 }
 
-async function buildDaily(): Promise<DailyContext> {
+async function buildSunsetDaily(): Promise<SunsetContext> {
   const date = localDateISO();
   const snapshot = await fetchSunsetSnapshot(date);
   const score = computeSunsetScore(snapshot.times, snapshot.hourly, config.tz);
@@ -78,10 +99,9 @@ async function buildDaily(): Promise<DailyContext> {
   return { props, spot, sunsetUtc: snapshot.times.sunsetUtc };
 }
 
-async function inspect(): Promise<void> {
-  const ctx = await buildDaily();
-  logger.info({ props: ctx.props }, "reel props (inspect)");
-
+async function inspectSunset(): Promise<void> {
+  const ctx = await buildSunsetDaily();
+  logger.info({ props: ctx.props }, "sunset props (inspect)");
   const caption = buildCaption({
     sunsetUtc: ctx.sunsetUtc,
     spotName: ctx.spot.name,
@@ -93,14 +113,12 @@ async function inspect(): Promise<void> {
   console.log("\n--- caption preview ---\n" + caption + "\n");
 }
 
-async function runPipeline(flags: CliFlags): Promise<void> {
-  // Soft token check first so failures are visible before doing work.
+async function runSunsetPipeline(flags: CliFlags): Promise<void> {
   if (!flags.dryRun && !flags.noPublish) {
     await checkIgTokenExpiry();
   }
-
-  const ctx = await buildDaily();
-  logger.info({ props: ctx.props }, "reel props");
+  const ctx = await buildSunsetDaily();
+  logger.info({ props: ctx.props }, "sunset props");
 
   const outDir = path.resolve("out");
   const rendered = await renderReel(ctx.props, outDir);
@@ -140,13 +158,35 @@ async function runPipeline(flags: CliFlags): Promise<void> {
   logger.info({ ...published }, "✅ daily reel published");
 }
 
+// ─── Event path ──────────────────────────────────────────────────────────
+
+async function inspectEvent(): Promise<void> {
+  const date = localDateISO();
+  const event = await pickEventForDate(date);
+  logger.info({ event }, "event picked (inspect)");
+  const caption = buildEventCaption(event);
+  // eslint-disable-next-line no-console
+  console.log("\n--- caption preview ---\n" + caption + "\n");
+}
+
+async function runEventPipeline(_flags: CliFlags): Promise<void> {
+  // Wired incrementally — E2 adds render, E3 adds upload, E4 adds publish.
+  throw new Error(
+    "event pipeline not yet wired beyond inspect — run with `inspect` for E1, " +
+      "or wait for E2 (render) / E3 (upload) / E4 (publish)",
+  );
+}
+
+// ─── Entry ───────────────────────────────────────────────────────────────
+
 async function main(): Promise<void> {
   const flags = parseArgs(process.argv.slice(2));
   if (flags.command === "inspect") {
-    await inspect();
-    return;
+    if (flags.type === "event") return inspectEvent();
+    return inspectSunset();
   }
-  await runPipeline(flags);
+  if (flags.type === "event") return runEventPipeline(flags);
+  return runSunsetPipeline(flags);
 }
 
 main().catch((err) => {

@@ -19,11 +19,20 @@ export const config = {
   unsplash: {
     accessKey: process.env.UNSPLASH_ACCESS_KEY ?? "",
   },
+  ticketmaster: {
+    apiKey: process.env.TICKETMASTER_API_KEY ?? "",
+  },
 } as const;
 
 export function requireIgConfig(): void {
   if (!config.ig.userId || !config.ig.accessToken) {
     throw new Error("IG_USER_ID and IG_ACCESS_TOKEN must be set");
+  }
+}
+
+export function requireTicketmasterConfig(): void {
+  if (!config.ticketmaster.apiKey) {
+    throw new Error("TICKETMASTER_API_KEY must be set");
   }
 }
 

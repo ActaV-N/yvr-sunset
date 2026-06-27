@@ -246,12 +246,14 @@ Tonight's sunset · [time] at [spot]
 - **콘텐츠별 가변**:
   - Sunset → `#sunset #goldenhour #vancouversunset` / `#밴쿠버일몰 #밴쿠버노을`
   - Event → `#vancouverevents #thingstodo` / `#밴쿠버이벤트`
+  - Briefing → `#thisweekvancouver #vancouverweekly` / `#밴쿠버주간 #밴쿠버다이제스트`
 - 매번 동일 코어 + 콘텐츠별 가변. 무작위 추가 금지(브랜드 검색성 떨어뜨림).
-- 실제 빌더 위치: `src/caption/caption.ts` (sunset), `src/caption/event-caption.ts` (event)
+- 실제 빌더 위치: `src/caption/caption.ts` (sunset), `src/caption/event-caption.ts` (event), `src/caption/briefing-caption.ts` (briefing)
 
 ### 이모지
-- 시그너처: `🌅`(sunset), `🎟`(event), `🌊`(tide 예정), `🌙`(moon 예정), `🌸`(seasonal 예정). feature별 1개 고정.
+- 시그너처: `🌅`(sunset), `🎟`(event), `📰`(briefing), `🌊`(tide 예정), `🌙`(moon 예정), `🌸`(seasonal 예정). feature별 1개 고정.
 - 본문에 이모지는 시그너처 1개만. 캡션 흩뿌리지 말 것.
+- Briefing 은 voice 포맷이라 본문 이모지 1개도 생략 가능 — caption 안에서만 사용.
 
 ### 금지
 - 광고 표현, "지금 클릭", "DM 주세요" 류 콜투액션

@@ -2,6 +2,7 @@ import path from "node:path";
 import { pickTrackForDate } from "./audio/picker";
 import { buildBriefingReelProps } from "./briefing/assets";
 import { buildBriefingScript } from "./briefing/build";
+import { buildBriefingCaption } from "./caption/briefing-caption";
 import { buildCaption } from "./caption/caption";
 import { buildEventCaption } from "./caption/event-caption";
 import { config } from "./config";
@@ -294,6 +295,10 @@ async function inspectBriefing(): Promise<void> {
   printSegment("SUNSET", script.segments.sunsetWeek);
   script.segments.events.forEach((seg, i) => printSegment(`EVENT ${i + 1}`, seg));
   printSegment("OUTRO", script.segments.outro);
+
+  const caption = buildBriefingCaption(script);
+  // eslint-disable-next-line no-console
+  console.log("--- caption preview ---\n" + caption + "\n");
 }
 
 function printSegment(label: string, seg: { voiceText: string; subtitleText: string }): void {
@@ -337,10 +342,26 @@ async function runBriefingPipeline(flags: CliFlags): Promise<void> {
     return;
   }
 
-  // B3 wires upload + publish.
-  throw new Error(
-    "briefing upload+publish not yet wired — run with --dry-run for B2, or wait for B3",
-  );
+  const uploaded = await uploadReel({
+    videoPath: rendered.videoPath,
+    coverPath: rendered.coverPath,
+  });
+  logger.info({ ...uploaded }, "upload complete");
+
+  if (flags.noPublish) {
+    logger.info("--no-publish: skipping IG publish");
+    return;
+  }
+
+  const caption = buildBriefingCaption(script);
+  logger.info({ chars: caption.length }, "caption built");
+
+  const published = await publishReel({
+    videoUrl: uploaded.videoUrl,
+    coverUrl: uploaded.coverUrl,
+    caption,
+  });
+  logger.info({ ...published }, "✅ briefing reel published");
 }
 
 // ─── Entry ───────────────────────────────────────────────────────────────

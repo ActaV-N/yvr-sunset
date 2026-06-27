@@ -1,0 +1,56 @@
+# yvr-sunset-briefing-weekly-cron 전용 Railway config.
+#
+# 적용: Railway 대시보드 → yvr-sunset-briefing-weekly-cron service → Settings →
+#       Config Path = "yvr-sunset/railway.briefing-weekly-cron.toml"
+#       (단독 repo 라면 "railway.briefing-weekly-cron.toml")
+#
+# 흐름:
+#   1. cron tick (월요일 UTC 02:00 = 일요일 19:00 PDT / 18:00 PST 저녁)
+#   2. 컨테이너 spin up → `npm run briefing` 실행
+#      - 지난 7일 sunset score 순차 fetch (open-meteo rate-limit 회피)
+#      - 최고점 일 + spot 선정
+#      - 다음 7일 events 큐레이션 3건 (dedup + BLOCKED_KEYWORDS)
+#      - Unsplash + Ticketmaster 이미지 캐시
+#      - ElevenLabs TTS 6 segments (R2 hash-cache — 첫 주 후 거의 hit)
+#      - Remotion 35–45s multi-scene 렌더 (Sequence + dynamic durationInFrames)
+#      - R2 업로드 (reels/yvr-briefing-{date}.{mp4,jpg})
+#      - IG 3-step container 발행
+#   3. 종료.
+#
+# 발행 간격:
+#   - sunset    : 매일 UTC 22:00
+#   - event     : 목요일 UTC 23:00
+#   - briefing  : 일요일 UTC 02:00 (월요일)
+# 모두 시차 있어 같은 IG 계정 algorithmic burst 안전.
+#
+# Secrets — railway.daily-cron.toml / railway.event-weekly-cron.toml 와 동일 +
+# briefing 전용 추가:
+#   IG_USER_ID, IG_ACCESS_TOKEN, IG_GRAPH_VERSION,
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+#   R2_BUCKET, R2_PUBLIC_BASE_URL,
+#   UNSPLASH_ACCESS_KEY, TICKETMASTER_API_KEY,
+#   ELEVENLABS_API_KEY      ← briefing TTS
+#   ELEVENLABS_VOICE_ID     ← briefing TTS
+#
+# Empty week handling:
+#   - sunset 전부 실패 → bestSunset null, "Cloudy week ahead" 대사로 자동 대체
+#   - event 0건 → caption + 영상에서 event 섹션 생략 (silent skip 가능하지만
+#     대부분 0건은 시즌 off-season — 그 주는 NoEventsAvailableError throw 안 함)
+#
+# 비용:
+#   - ElevenLabs free tier (10k chars/month) 한도 안 → $0
+#   - R2: voice 영구 cache, 같은 스크립트 재실행 시 ElevenLabs 호출 0
+#   - 첫 주 ~400 chars 호출, 이후 매주 새 부분만 ~200 chars
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm run briefing"
+cronSchedule = "0 2 * * 1"
+
+# restartPolicyType = "on_failure":
+#   IG container poll 일시 실패 / Ticketmaster 일시 5xx 등 재시도 안전.
+#   ElevenLabs는 hash cache 라 retry 시 추가 charge 없음.
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

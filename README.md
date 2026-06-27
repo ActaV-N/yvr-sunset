@@ -3,8 +3,9 @@
 밴쿠버 데일리 콘텐츠 IG 릴스 자동 발행 시스템. Kokio 패밀리 sub-brand, 시각 정체성은 독립 (`docs/BRAND.md` 참조).
 
 Features:
-- **Sunset** (매일 UTC 22:00) — 오늘의 일몰 시각·점수·명당 추천
-- **Event** (주 1회, 목요일 UTC 23:00) — 다음 7일 음악·예술 이벤트 큐레이션 (Ticketmaster Discovery API)
+- **Sunset** (매일 UTC 22:00) — 오늘의 일몰 시각·점수·명당 추천 (12s mood reel)
+- **Event** (주 1회, 목요일 UTC 23:00) — 다음 7일 음악·예술 이벤트 1건 (12s mood reel)
+- **Briefing** (주 1회, 월요일 UTC 02:00 = 일요일 19:00 PDT) — 한 주 다이제스트 (35–45s multi-scene + EN voice + KR 자막)
 
 향후: tide / moon / seasonal 등 확장 예정.
 
@@ -33,8 +34,10 @@ Sunrise-Sunset.org + Open-Meteo  →  점수 + 명당
 | Instagram 비즈니스 계정 + long-lived 토큰 | [docs/IG_SETUP.md](docs/IG_SETUP.md) | 15분 |
 | Unsplash Access Key (sunset 명당 사진) | https://unsplash.com/developers | 2분 |
 | Ticketmaster Consumer Key (event 큐레이션) | [docs/EVENTS.md §1](docs/EVENTS.md) | 2분 |
+| ElevenLabs API Key + Voice ID (briefing TTS) | [docs/BRIEFING.md §1](docs/BRIEFING.md) | 3분 |
+| 기존 BGM mp3 → R2 마이그레이션 | `npm run migrate:audio` (일회성) | 1분 |
 
-`.env.example`를 `.env`로 복사 후 위 5곳에서 받은 값 채우기.
+`.env.example`를 `.env`로 복사 후 위 6곳에서 받은 값 채우기.
 
 ## Scripts
 
@@ -54,9 +57,18 @@ Sunrise-Sunset.org + Open-Meteo  →  점수 + 명당
 | `npm run event:upload` | 렌더 + R2 업로드, IG 발행 스킵 |
 | `npm run event` | 풀 파이프라인 |
 
+### Briefing (주 1회, multi-scene + TTS)
+| 명령 | 동작 |
+|------|------|
+| `npm run briefing -- inspect` | 스크립트(EN/KR) + 컨텍스트 + 캡션 미리보기 (TTS 미호출) |
+| `npm run briefing:dry` | 렌더만 (TTS 실호출, R2 캐시), `out/yvr-briefing-{date}.mp4` |
+| `npm run briefing:upload` | 렌더 + R2 업로드, IG 발행 스킵 |
+| `npm run briefing` | 풀 파이프라인 |
+
 ### 공통
 | 명령 | 동작 |
 |------|------|
+| `npm run migrate:audio` | 일회성: `public/audio/*` → R2 `audio/{mood}/*` 업로드 |
 | `npm run render:preview` | Remotion Studio (디자인 튜닝용) |
 
 ## 프로젝트 레이아웃
@@ -64,31 +76,37 @@ Sunrise-Sunset.org + Open-Meteo  →  점수 + 명당
 ```
 src/
 ├── brand/        # 색·타입·이징·safe area·photo overlay·shadow 토큰 (single source)
+├── storage/      # R2 head/put/get/list/url 헬퍼
 ├── data/         # Sunrise-Sunset + Open-Meteo 클라이언트 (sunset)
 ├── scoring/      # 노을 점수 휴리스틱 (0–100 + label) (sunset)
 ├── spots/        # 밴쿠버 8개 명당 + 한글명 + 일별 결정론적 로테이션 (sunset)
-├── feeds/        # Ticketmaster Discovery API 클라이언트 (event)
-├── events/       # CuratedEvent + 결정론적 큐레이션 + BLOCKED_KEYWORDS (event)
+├── feeds/        # Ticketmaster Discovery API 클라이언트 (event/briefing)
+├── events/       # CuratedEvent + 결정론적 큐레이션 + BLOCKED_KEYWORDS
+├── briefing/     # 주간 다이제스트 스크립트 빌더 + 자산 준비 (briefing)
+├── voice/        # ElevenLabs TTS + content-hash R2 캐시 (briefing)
 ├── photos/       # Unsplash 페처(spots) + Ticketmaster 캐시(events)
-├── audio/        # 트랙 로테이션 (public/audio/{sunset,event}/*.mp3)
-├── caption/      # KR/EN 이중 캡션 빌더 (sunset · event)
-├── remotion/     # SunsetReel + EventReel + scenes/
+├── audio/        # BGM 로테이션 (R2 audio/{mood}/ 기반, async)
+├── caption/      # KR/EN 이중 캡션 빌더 (sunset · event · briefing)
+├── remotion/     # SunsetReel + EventReel + BriefingReel + scenes/
 ├── publish/      # R2 업로더 + IG Graph API + 토큰 만료 체크
-└── cli.ts        # Orchestrator (--type sunset|event)
+└── cli.ts        # Orchestrator (--type sunset|event|briefing)
 
-public/
+public/                    (assets in R2 — local only as build cache / commit source)
 ├── logo_transparent.png   # 로고 (top-left masthead)
 ├── spots/                 # 캐시된 Unsplash 사진 + attribution json
-├── events/                # 캐시된 Ticketmaster 이미지 (eventId.jpg)
-└── audio/
-    ├── sunset/*.mp3
-    └── event/*.mp3
+└── events/                # 캐시된 Ticketmaster 이미지 (eventId.jpg)
+
+R2 prefix layout:
+├── voice/{hash}.mp3       # TTS 캐시 (content-hash, duration metadata 포함)
+├── audio/{mood}/*.mp3     # BGM 트랙 (sunset/event/briefing)
+└── reels/yvr-{type}-{date}.{mp4,jpg}  # 발행된 영상 + 커버
 
 docs/
 ├── BRAND.md       # 브랜드 시스템 (10개 섹션, single source of truth)
 ├── R2_SETUP.md
 ├── IG_SETUP.md
-└── EVENTS.md      # Ticketmaster 통합 + 큐레이션 정책
+├── EVENTS.md      # Ticketmaster 통합 + 큐레이션 정책
+└── BRIEFING.md    # ElevenLabs 셋업 + multi-scene + voice/자막 정책
 ```
 
 ## 배포 (Railway cron)
@@ -116,6 +134,7 @@ Railway 대시보드 → New Project → repo 연결 후 **2개 service** 생성
 |-------------|------|-------------|------|
 | `yvr-sunset-daily-cron` | Cron | `yvr-sunset/railway.daily-cron.toml` | `0 22 * * *` |
 | `yvr-sunset-event-weekly-cron` | Cron | `yvr-sunset/railway.event-weekly-cron.toml` | `0 23 * * 4` |
+| `yvr-sunset-briefing-weekly-cron` | Cron | `yvr-sunset/railway.briefing-weekly-cron.toml` | `0 2 * * 1` |
 
 (단독 repo 라면 경로 prefix `yvr-sunset/` 생략.)
 
@@ -133,8 +152,10 @@ Railway 대시보드 → New Project → repo 연결 후 **2개 service** 생성
 | `R2_SECRET_ACCESS_KEY` | 공통 | [R2_SETUP §3](docs/R2_SETUP.md) |
 | `R2_BUCKET` | 공통 | 버킷명 (예: `yvr-sunset`) |
 | `R2_PUBLIC_BASE_URL` | 공통 | [R2_SETUP §2](docs/R2_SETUP.md) |
-| `UNSPLASH_ACCESS_KEY` | Sunset | https://unsplash.com/developers |
-| `TICKETMASTER_API_KEY` | Event | [EVENTS §1](docs/EVENTS.md) |
+| `UNSPLASH_ACCESS_KEY` | Sunset, Briefing | https://unsplash.com/developers |
+| `TICKETMASTER_API_KEY` | Event, Briefing | [EVENTS §1](docs/EVENTS.md) |
+| `ELEVENLABS_API_KEY` | Briefing | [BRIEFING §1](docs/BRIEFING.md) |
+| `ELEVENLABS_VOICE_ID` | Briefing | [BRIEFING §1](docs/BRIEFING.md) (e.g., `JBFqnCBsd6RMkjVDRZzb` for George) |
 
 ### 수동 발행 / 디버그
 
@@ -142,6 +163,7 @@ Railway 대시보드 → New Project → repo 연결 후 **2개 service** 생성
 - 로컬에서 동일 검증 가능 (Railway 환경과 동일한 코드):
   - Sunset: `npm run daily:upload` (R2까지) → `npm run daily` (전체)
   - Event: `npm run event:upload` → `npm run event`
+  - Briefing: `npm run briefing:upload` → `npm run briefing`
 
 ### 실패 처리
 

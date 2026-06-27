@@ -63,26 +63,32 @@ Sunrise-Sunset.org + Open-Meteo  →  점수 + 명당
 
 ```
 src/
-├── brand/        # 색·타입·이징·레이아웃 토큰 (single source of truth)
-├── data/         # Sunrise-Sunset + Open-Meteo 클라이언트
-├── scoring/      # 노을 점수 휴리스틱 (0–100 + label)
-├── spots/        # 밴쿠버 8개 명당 + 한글명 + 일별 결정론적 로테이션
-├── photos/       # Unsplash 페처 (public/spots/에 캐시)
-├── audio/        # 트랙 로테이션 (public/audio/*.mp3)
-├── caption/      # KR/EN 이중 캡션 빌더
-├── remotion/     # 컴포지션 + scenes/
+├── brand/        # 색·타입·이징·safe area·photo overlay·shadow 토큰 (single source)
+├── data/         # Sunrise-Sunset + Open-Meteo 클라이언트 (sunset)
+├── scoring/      # 노을 점수 휴리스틱 (0–100 + label) (sunset)
+├── spots/        # 밴쿠버 8개 명당 + 한글명 + 일별 결정론적 로테이션 (sunset)
+├── feeds/        # Ticketmaster Discovery API 클라이언트 (event)
+├── events/       # CuratedEvent + 결정론적 큐레이션 + BLOCKED_KEYWORDS (event)
+├── photos/       # Unsplash 페처(spots) + Ticketmaster 캐시(events)
+├── audio/        # 트랙 로테이션 (public/audio/{sunset,event}/*.mp3)
+├── caption/      # KR/EN 이중 캡션 빌더 (sunset · event)
+├── remotion/     # SunsetReel + EventReel + scenes/
 ├── publish/      # R2 업로더 + IG Graph API + 토큰 만료 체크
-└── cli.ts        # Orchestrator
+└── cli.ts        # Orchestrator (--type sunset|event)
 
 public/
 ├── logo_transparent.png   # 로고 (top-left masthead)
 ├── spots/                 # 캐시된 Unsplash 사진 + attribution json
-└── audio/                 # 무료 라이선스 BGM mp3 (라이선스 자체 책임)
+├── events/                # 캐시된 Ticketmaster 이미지 (eventId.jpg)
+└── audio/
+    ├── sunset/*.mp3
+    └── event/*.mp3
 
 docs/
-├── BRAND.md
+├── BRAND.md       # 브랜드 시스템 (10개 섹션, single source of truth)
 ├── R2_SETUP.md
-└── IG_SETUP.md
+├── IG_SETUP.md
+└── EVENTS.md      # Ticketmaster 통합 + 큐레이션 정책
 ```
 
 ## 배포 (Railway cron)

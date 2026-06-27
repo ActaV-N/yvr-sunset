@@ -13,17 +13,19 @@ export class NoEventsAvailableError extends Error {
 }
 
 /**
- * Deterministic per-date curation:
+ * Deterministic per-date curation. Returns up to `n` events in priority order
+ * (weekend first → venue capacity → id stable). Returns empty array if nothing
+ * qualifies — caller decides whether to throw.
+ *
  *   1. Fetch upcoming events in horizon (default 7d) for Music + Arts only
  *   2. Require image + venue (no info-thin entries)
- *   3. Prefer weekend (Fri/Sat/Sun); tie-break by venue capacity if known,
- *      then by event id (lexicographic) for stability
- *   4. Throw NoEventsAvailableError if nothing qualifies — caller should
- *      surface as workflow failure (e.g., GH/Railway issue or skip).
+ *   3. Apply BLOCKED_KEYWORDS policy filter
+ *   4. Sort by weekend/capacity/id
  */
-export async function pickEventForDate(
+export async function pickTopEvents(
   fromDateISO: string,
-): Promise<CuratedEvent> {
+  n = 1,
+): Promise<CuratedEvent[]> {
   const start = new Date(`${fromDateISO}T00:00:00Z`);
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + HORIZON_DAYS);
@@ -43,13 +45,33 @@ export async function pickEventForDate(
     { qualifiedCount: qualified.length, blockedCount: raw.length - qualified.length },
     "events filtered by qualification + keyword policy",
   );
-  if (qualified.length === 0) {
-    throw new NoEventsAvailableError();
-  }
 
   qualified.sort(compareForPick);
-  const winner = qualified[0]!;
-  return toCurated(winner);
+  // Collapse multi-night runs of the same act at the same venue (touring
+  // shows often book early/late or back-to-back nights → looks duplicated
+  // in a briefing). Keeps the highest-priority instance per (name, venue).
+  const distinct = dedupByNameVenue(qualified);
+  return distinct.slice(0, n).map(toCurated);
+}
+
+function dedupByNameVenue(events: TicketmasterEvent[]): TicketmasterEvent[] {
+  const seen = new Set<string>();
+  const out: TicketmasterEvent[] = [];
+  for (const e of events) {
+    const venue = e._embedded?.venues[0]?.name ?? "";
+    const key = `${e.name}|${venue}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(e);
+  }
+  return out;
+}
+
+/** Single-event pick — throws if nothing qualifies. Thin wrapper over pickTopEvents. */
+export async function pickEventForDate(fromDateISO: string): Promise<CuratedEvent> {
+  const picks = await pickTopEvents(fromDateISO, 1);
+  if (picks.length === 0) throw new NoEventsAvailableError();
+  return picks[0]!;
 }
 
 function isQualified(e: TicketmasterEvent): boolean {
@@ -104,8 +126,8 @@ function toCurated(e: TicketmasterEvent): CuratedEvent {
 
   return {
     id: e.id,
-    name: e.name,
-    venueName: venue?.name ?? "TBA",
+    name: e.name.trim(),
+    venueName: venue?.name?.trim() ?? "TBA",
     localDate: e.dates.start.localDate,
     localTime: e.dates.start.localTime?.slice(0, 5) ?? null,
     imageUrl: pickImage(e),

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { pickTrackForDate } from "./audio/picker";
+import { buildBriefingScript } from "./briefing/build";
 import { buildCaption } from "./caption/caption";
 import { buildEventCaption } from "./caption/event-caption";
 import { config } from "./config";
@@ -18,7 +19,7 @@ import type { ReelProps } from "./remotion/types";
 import { computeSunsetScore, getSunsetEyebrow } from "./scoring/score";
 import { pickSpotForDate, type Spot } from "./spots/spots";
 
-type ReelType = "sunset" | "event";
+type ReelType = "sunset" | "event" | "briefing";
 type Command = "run" | "inspect";
 
 interface CliFlags {
@@ -44,11 +45,11 @@ function parseArgs(argv: string[]): CliFlags {
     else if (a === "inspect") flags.command = "inspect";
     else if (a === "--type") {
       const next = argv[i + 1];
-      if (next === "sunset" || next === "event") {
+      if (next === "sunset" || next === "event" || next === "briefing") {
         flags.type = next;
         i++;
       } else {
-        throw new Error(`--type must be 'sunset' or 'event' (got ${next})`);
+        throw new Error(`--type must be 'sunset' | 'event' | 'briefing' (got ${next})`);
       }
     }
   }
@@ -272,14 +273,54 @@ async function runEventPipeline(flags: CliFlags): Promise<void> {
   logger.info({ ...published }, "✅ event reel published");
 }
 
+// ─── Briefing path ───────────────────────────────────────────────────────
+
+async function inspectBriefing(): Promise<void> {
+  const script = await buildBriefingScript();
+  logger.info(
+    {
+      dateISO: script.dateISO,
+      weekLabel: script.weekLabel,
+      bestSunset: script.context.bestSunset,
+      topEventNames: script.context.topEvents.map((e) => `${e.name} (${e.localDate})`),
+    },
+    "briefing context",
+  );
+  // eslint-disable-next-line no-console
+  console.log(`\n=== ${script.weekLabel} ===\n`);
+  printSegment("INTRO", script.segments.intro);
+  printSegment("SUNSET", script.segments.sunsetWeek);
+  script.segments.events.forEach((seg, i) => printSegment(`EVENT ${i + 1}`, seg));
+  printSegment("OUTRO", script.segments.outro);
+}
+
+function printSegment(label: string, seg: { voiceText: string; subtitleText: string }): void {
+  // eslint-disable-next-line no-console
+  console.log(`— ${label} —`);
+  // eslint-disable-next-line no-console
+  console.log(`  EN: ${seg.voiceText}`);
+  // eslint-disable-next-line no-console
+  console.log(`  KR: ${seg.subtitleText}\n`);
+}
+
+async function runBriefingPipeline(_flags: CliFlags): Promise<void> {
+  // Wired in B2 (composition + TTS), B3 (upload + publish), B4 (cron + docs).
+  throw new Error(
+    "briefing pipeline not yet wired beyond inspect — run with `inspect` for B1, " +
+      "or wait for B2 (render) / B3 (publish) / B4 (cron)",
+  );
+}
+
 // ─── Entry ───────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   const flags = parseArgs(process.argv.slice(2));
   if (flags.command === "inspect") {
+    if (flags.type === "briefing") return inspectBriefing();
     if (flags.type === "event") return inspectEvent();
     return inspectSunset();
   }
+  if (flags.type === "briefing") return runBriefingPipeline(flags);
   if (flags.type === "event") return runEventPipeline(flags);
   return runSunsetPipeline(flags);
 }

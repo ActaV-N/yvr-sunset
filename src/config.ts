@@ -22,6 +22,12 @@ export const config = {
   ticketmaster: {
     apiKey: process.env.TICKETMASTER_API_KEY ?? "",
   },
+  elevenlabs: {
+    apiKey: process.env.ELEVENLABS_API_KEY ?? "",
+    voiceId: process.env.ELEVENLABS_VOICE_ID ?? "",
+    /** Multilingual v2 — handles EN cinematic well and supports KR if we ever switch. */
+    modelId: "eleven_multilingual_v2",
+  },
 } as const;
 
 export function requireIgConfig(): void {
@@ -33,6 +39,12 @@ export function requireIgConfig(): void {
 export function requireTicketmasterConfig(): void {
   if (!config.ticketmaster.apiKey) {
     throw new Error("TICKETMASTER_API_KEY must be set");
+  }
+}
+
+export function requireElevenLabsConfig(): void {
+  if (!config.elevenlabs.apiKey || !config.elevenlabs.voiceId) {
+    throw new Error("ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID must be set");
   }
 }
 

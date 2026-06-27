@@ -13,6 +13,9 @@
     "event": "tsx src/cli.ts --type event",
     "event:dry": "tsx src/cli.ts --type event --dry-run",
     "event:upload": "tsx src/cli.ts --type event --no-publish",
+    "briefing": "tsx src/cli.ts --type briefing",
+    "briefing:dry": "tsx src/cli.ts --type briefing --dry-run",
+    "briefing:upload": "tsx src/cli.ts --type briefing --no-publish",
     "render:preview": "remotion preview src/remotion/index.ts"
   },
   "dependencies": {

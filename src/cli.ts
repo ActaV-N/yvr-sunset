@@ -15,7 +15,7 @@ import { checkIgTokenExpiry } from "./publish/token-check";
 import type { EventReelProps } from "./remotion/event-types";
 import { renderEventReel, renderReel } from "./remotion/render";
 import type { ReelProps } from "./remotion/types";
-import { computeSunsetScore } from "./scoring/score";
+import { computeSunsetScore, getSunsetEyebrow } from "./scoring/score";
 import { pickSpotForDate, type Spot } from "./spots/spots";
 
 type ReelType = "sunset" | "event";
@@ -86,6 +86,7 @@ async function buildSunsetDaily(): Promise<SunsetContext> {
     sunsetDisplay: formatSunsetDisplay(snapshot.times.sunsetUtc, config.tz),
     score: score.score,
     label: score.label,
+    eyebrow: getSunsetEyebrow(score.score),
     spotName: spot.name,
     spotBlurb: spot.blurb,
     clouds: {

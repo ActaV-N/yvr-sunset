@@ -22,7 +22,11 @@ export function SunsetReel(props: ReelProps): React.JSX.Element {
       <PhotoBg photoFile={props.photoFile} />
       <Logo />
       <TopBar sunsetDisplay={props.sunsetDisplay} />
-      <SpotReveal spotName={props.spotName} spotBlurb={props.spotBlurb} />
+      <SpotReveal
+        eyebrow={props.eyebrow}
+        spotName={props.spotName}
+        spotBlurb={props.spotBlurb}
+      />
       <ScoreCard score={props.score} label={props.label} />
       <Attribution
         text={props.photoCredit ? `📸 ${props.photoCredit} / Unsplash` : null}

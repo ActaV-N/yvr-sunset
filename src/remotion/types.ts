@@ -11,6 +11,8 @@ export const ReelPropsSchema = z.object({
   sunsetDisplay: z.string(),
   score: z.number(),
   label: z.string(),
+  /** Score-adaptive eyebrow shown above the spot name (e.g. "Head to" / "Catch it at"). */
+  eyebrow: z.string(),
   spotName: z.string(),
   spotBlurb: z.string(),
   clouds: z.object({
@@ -34,6 +36,7 @@ export const DEFAULT_REEL_PROPS: ReelProps = {
   sunsetDisplay: "9:23 PM",
   score: 50,
   label: "👍 Decent",
+  eyebrow: "Catch it at",
   spotName: "Kitsilano Beach",
   spotBlurb: "Downtown silhouette across the water",
   clouds: { low: 0, mid: 0, high: 0 },

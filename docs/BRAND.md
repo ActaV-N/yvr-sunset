@@ -241,14 +241,16 @@ Tonight's sunset · [time] at [spot]
 
 ### 해시태그
 - 한/영 섞어서 8–15개
-- 영문 코어: `#vancouver #yvr #vancouverbc #explorebc #pnw`
-- 콘텐츠별 영문: sunset이면 `#sunset #goldenhour #vancouversunset`
-- 한국어 코어: `#밴쿠버 #밴쿠버일상 #밴쿠버여행 #캐나다`
-- 콘텐츠별 한국어: sunset이면 `#밴쿠버일몰 #밴쿠버노을`
+- **영문 코어** (모든 feature 공통): `#vancouver #yvr #vancouverbc #explorebc #pnw`
+- **한국어 코어** (모든 feature 공통): `#밴쿠버 #밴쿠버일상 #밴쿠버여행 #캐나다`
+- **콘텐츠별 가변**:
+  - Sunset → `#sunset #goldenhour #vancouversunset` / `#밴쿠버일몰 #밴쿠버노을`
+  - Event → `#vancouverevents #thingstodo` / `#밴쿠버이벤트`
 - 매번 동일 코어 + 콘텐츠별 가변. 무작위 추가 금지(브랜드 검색성 떨어뜨림).
+- 실제 빌더 위치: `src/caption/caption.ts` (sunset), `src/caption/event-caption.ts` (event)
 
 ### 이모지
-- 시그너처: `🌅`(sunset), `🌊`(tide), `🌙`(moon), `🌸`(seasonal). feature별 1개 고정.
+- 시그너처: `🌅`(sunset), `🎟`(event), `🌊`(tide 예정), `🌙`(moon 예정), `🌸`(seasonal 예정). feature별 1개 고정.
 - 본문에 이모지는 시그너처 1개만. 캡션 흩뿌리지 말 것.
 
 ### 금지

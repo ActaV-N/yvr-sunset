@@ -96,3 +96,17 @@ export function computeSunsetScore(
     },
   };
 }
+
+/**
+ * Score-adaptive eyebrow text shown above the spot name in the sunset reel.
+ * Same thresholds as the SunsetLabel band so eyebrow and label always agree.
+ *
+ *  - ≥75 🔥 Great → "Head to"           (strong recommendation)
+ *  - 50–74 👍 Decent → "Catch it at"    (light suggestion)
+ *  - <50 😐 Meh → "Quiet tonight at"    (honest, low-energy)
+ */
+export function getSunsetEyebrow(score: number): string {
+  if (score >= 75) return "Head to";
+  if (score >= 50) return "Catch it at";
+  return "Quiet tonight at";
+}

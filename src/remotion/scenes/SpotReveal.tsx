@@ -16,6 +16,8 @@ import {
 import { REEL_WIDTH } from "../types";
 
 interface Props {
+  /** Score-adaptive lead-in ("Head to" / "Catch it at" / "Quiet tonight at"). */
+  eyebrow: string;
   spotName: string;
   spotBlurb: string;
 }
@@ -28,7 +30,7 @@ const HERO_MAX_WIDTH =
  * cream blurb beneath. Each hero line is auto-fit to canvas width so long
  * names ("Queen Elizabeth Park") shrink instead of clipping.
  */
-export function SpotReveal({ spotName, spotBlurb }: Props): React.JSX.Element {
+export function SpotReveal({ eyebrow, spotName, spotBlurb }: Props): React.JSX.Element {
   const frame = useCurrentFrame();
   const lines = splitTwoLines(spotName);
 
@@ -60,7 +62,7 @@ export function SpotReveal({ spotName, spotBlurb }: Props): React.JSX.Element {
         padding: `0 ${LAYOUT.horizontalPaddingPx}px`,
       }}
     >
-      <Eyebrow frame={frame} />
+      <Eyebrow text={eyebrow} frame={frame} />
       {lines.map((line, i) => (
         <HeroLine
           key={`${line}-${i}`}
@@ -75,7 +77,7 @@ export function SpotReveal({ spotName, spotBlurb }: Props): React.JSX.Element {
   );
 }
 
-function Eyebrow({ frame }: { frame: number }): React.JSX.Element {
+function Eyebrow({ text, frame }: { text: string; frame: number }): React.JSX.Element {
   const start = TIMELINE.eyebrowFrom;
   const opacity = interpolate(frame, [start, start + TIMING.softEntranceFrames], [0, 1], {
     extrapolateLeft: "clamp",
@@ -96,7 +98,7 @@ function Eyebrow({ frame }: { frame: number }): React.JSX.Element {
         marginBottom: 32,
       }}
     >
-      Head to
+      {text}
     </div>
   );
 }
